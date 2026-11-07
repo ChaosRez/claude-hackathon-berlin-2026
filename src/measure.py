@@ -30,7 +30,7 @@ RELATION_TYPES = list(SCHEMA.relation_types)
 SCALAR_MEASURES = [
     "n_nodes", "n_edges", "n_filler", "edges_per_node", "extra_edge_share",
     "longest_path", "depth", "n_leaves", "main_in_degree", "mean_branching",
-    "has_cycle", "main_position", "n_attacks", "answered_attack_share",
+    "avg_degree", "max_degree", "max_in_degree", "has_cycle", "n_cycles", "main_position", "n_attacks", "answered_attack_share",
     "n_qualifies", "n_conflicts", "hedged_share",
 ]
 
@@ -111,7 +111,11 @@ def measures(graph):
         "n_leaves": sum(d == 0 for _, d in g.in_degree()),
         "main_in_degree": g.in_degree(main),
         "mean_branching": sum(in_deg) / len(in_deg) if in_deg else 0.0,
+        "avg_degree": 2 * n_edges / n_nodes,
+        "max_degree": max(d for _, d in g.degree()),
+        "max_in_degree": max(d for _, d in g.in_degree()),
         "has_cycle": int(not nx.is_directed_acyclic_graph(g)),
+        "n_cycles": sum(1 for _ in nx.simple_cycles(g)),
         "main_position": order.index(main) / (len(order) - 1) if len(order) > 1 else None,
         "n_attacks": edge_types.count("attacks"),
         "answered_attack_share": len(answered) / len(counterpoints) if counterpoints else None,
