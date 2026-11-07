@@ -1,0 +1,186 @@
+# Criteria for comparing reasoning graphs (Task 6).
+#
+# Status: DRAFT proposal, not agreed by the team.
+# Nodes are entities (entity_definition.yaml); edges are relations (relation.yaml).
+# Every measure here is computed by src/measure.py, never by hand or by an LLM.
+#
+# Measures use node types and edge types only, never the entity text.
+
+version: 0.1
+status: draft
+
+# ---------------------------------------------------------------------------
+# What counts.
+# ---------------------------------------------------------------------------
+scope:
+  nodes: All entities except `filler`. Filler is counted separately (n_filler).
+  edges: All relations. Edges touching filler should not exist; if they do, the graph is invalid.
+  full_graph: All nodes and all edges.
+  primary_tree: >
+    All nodes and only edges with `primary: true`.
+    Should be a tree rooted at the main claim.
+  path_length: Counted in edges, not nodes. A single node has length 0.
+  invalid_graphs: >
+    Graphs that fail the checks in src/measure.py are counted and listed, never silently dropped.
+    Their measures are not included in averages.
+
+# ---------------------------------------------------------------------------
+# Per-graph measures.
+# Each has: what it is, which graph it uses, and the question it answers.
+# ---------------------------------------------------------------------------
+measures:
+
+  # --- Size ---------------------------------------------------------------
+  n_nodes:
+    group: size
+    definition: Number of nodes (filler excluded).
+    graph: full_graph
+    question: How many reasoning units does the answer have?
+  n_edges:
+    group: size
+    definition: Number of edges.
+    graph: full_graph
+    question: How many links between units?
+  n_filler:
+    group: size
+    definition: Number of filler entities.
+    graph: none (counted from the node list)
+    question: How much of the answer says nothing about the topic?
+  edges_per_node:
+    group: size
+    definition: n_edges / n_nodes.
+    graph: full_graph
+    question: >
+      How interlinked is the reasoning?
+      In a tree this is (n-1)/n; above that means extra links.
+  extra_edge_share:
+    group: size
+    definition: Share of edges that are not primary.
+    graph: full_graph
+    question: How much structure would a tree throw away?
+
+  # --- Shape --------------------------------------------------------------
+  longest_path:
+    group: shape
+    definition: >
+      Number of edges in the longest directed path anywhere in the graph.
+      If the graph has a cycle, it is computed on the graph with each cycle merged into one node,
+      and has_cycle is set.
+    graph: full_graph
+    question: How long is the longest chain of reasoning?
+  depth:
+    group: shape
+    definition: >
+      Number of edges in the longest path from any node to the main claim.
+    graph: primary_tree
+    question: How deep is the support for the main answer?
+  n_leaves:
+    group: shape
+    definition: Nodes with no incoming edges.
+    graph: full_graph
+    question: How many points are left without further support or reply?
+  main_in_degree:
+    group: shape
+    definition: Number of edges pointing directly to the main claim.
+    graph: full_graph
+    question: Is the answer flat (everything points at the main claim) or layered?
+  mean_branching:
+    group: shape
+    definition: Average in-degree over nodes that have at least one incoming edge.
+    graph: full_graph
+    question: When a point gets support, how many pieces does it get?
+  has_cycle:
+    group: shape
+    definition: 1 if the graph has a directed cycle, else 0.
+    graph: full_graph
+    question: Does the reasoning go in circles?
+  main_position:
+    group: shape
+    definition: >
+      Position of the main claim among non-filler entities in text order:
+      0 = first, 1 = last. Empty if there is only one node.
+    graph: none (node order)
+    question: Does the writer answer first, or build up to the answer?
+
+  # --- Dialectic: does the writer consider the other side? ----------------
+  n_attacks:
+    group: dialectic
+    definition: Number of `attacks` edges.
+    graph: full_graph
+    question: How often is the other side raised?
+  answered_attack_share:
+    group: dialectic
+    definition: >
+      Share of counterpoint nodes that receive at least one `refutes` edge.
+      Empty if there are no counterpoints.
+    graph: full_graph
+    question: When the other side is raised, is it answered or left open?
+  n_qualifies:
+    group: dialectic
+    definition: Number of `qualifies` edges.
+    graph: full_graph
+    question: How often does the writer say "it depends"?
+  n_conflicts:
+    group: dialectic
+    definition: Number of `conflicts` edges.
+    graph: full_graph
+    question: Does the answer contradict itself?
+  hedged_share:
+    group: dialectic
+    definition: Share of nodes flagged as hedged (hedged = true).
+    graph: none (node flags)
+    question: How much does the writer soften their statements?
+
+  # --- Composition ----------------------------------------------------------
+  entity_share:
+    group: composition
+    definition: Share of nodes of each entity type (one number per type).
+    graph: none (node types)
+    question: What is the answer made of? E.g. more background, less evidence?
+  relation_share:
+    group: composition
+    definition: Share of edges of each relation type (one number per type).
+    graph: full_graph
+    question: Which moves does the writer make? E.g. more elaborates, fewer supports?
+
+# ---------------------------------------------------------------------------
+# How to compare human and ChatGPT graphs.
+# ---------------------------------------------------------------------------
+comparison:
+
+  pairing: >
+    Each question has one human and one ChatGPT answer of almost equal length.
+    Compare within each question first (ChatGPT minus human),
+    then average those differences over all questions.
+
+  summary_per_group: [count, mean, median, standard deviation]
+
+  baseline:
+    why: >
+      Every human-vs-LLM result must be shown next to a human-vs-human baseline (CLAUDE.md).
+    problem: >
+      In HC3 finance every question has exactly ONE human answer (checked on the raw data, 3,933 questions),
+      so we cannot pair two human answers to the same question.
+    method: >
+      Split-half baseline: shuffle the human graphs, split them into two halves,
+      and take the difference of the mean of each measure.
+      Repeat 1,000 times with a fixed seed.
+      Report the spread (95% range) of these human-vs-human differences.
+      A human-vs-ChatGPT difference that falls inside this range is not a real difference.
+    alternative: >
+      570 finance questions have two ChatGPT answers, which gives a ChatGPT-vs-ChatGPT baseline
+      on the same question. Only usable if those pairs pass the length filter.
+
+  significance: >
+    Wilcoxon signed-rank test on the per-question differences.
+    Report the effect size and the number of pairs, not only the p-value.
+    Correct for testing many measures (Holm).
+
+  whole_graph: >
+    Graph edit distance on the primary tree, with node and edge types as labels (Task 13).
+    Compare human-vs-ChatGPT distances to human-vs-human distances.
+
+  required_with_every_result:
+    - Number of graphs per group, and number of invalid graphs per group.
+    - Extractor agreement with the hand labels in annotations/, separately for human and ChatGPT texts.
+    - Three real example pairs read by a person for the biggest difference.
