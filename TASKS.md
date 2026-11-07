@@ -18,14 +18,14 @@ Steps refer to the plan in `README.md`.
   - Draft: `relation.yaml` v0.1 (9 relations, primary edges), copied into `GUIDE.md`.
   - Open: two people hand-label the same 2 texts and compare; fix the rules.
   - Open: mark `GUIDE.md` FINAL.
-- [ ] Task 4: Code that builds the graph (Step 3)
-  - `src/extract.py`: text + `GUIDE.md` → entities and relations as JSON, using Claude.
-  - Validation is done: `check()` in `src/measure.py`, with tests in `tests/test_measure.py`.
-  - Open: a coverage check (entity texts rebuild the answer), described in `entity_definition.yaml`.
-  - Tests first.
+- [Done] Task 4: Code that builds the graph (Step 3)
+  - `src/extract.py`: text + `entity_definition.yaml` + `relation.yaml` → entities and relations as YAML, using Claude.
+  - `src/validate.py`: all graph rules, including the coverage check; used by the extractor and by `src/measure.py`.
+    Tests in `tests/test_validate.py` and `tests/test_measure.py`.
+  - Open: the team decides how to measure graphs with `implicit_main` (no main claim); `src/measure.py` counts them as invalid for now.
 - [ ] Task 5: Code that draws a graph (Step 3)
-  - `src/draw.py`: one color per entity type, labeled arrows, saves a PNG.
-  - Can start now with the example JSON in `GUIDE.md` section 8.
+  - Done: `src/draw.py` makes a Graphviz drawing (one color per family of entity types, labeled arrows), shown in `app.py`.
+  - Open: save a PNG.
 - [ ] Task 6: Define the analysis (Step 5)
   - Draft: measures and comparison method in `criteria.yaml` v0.1, computed by `src/measure.py`.
   - Wider brainstorm in `analyse logic.md`.

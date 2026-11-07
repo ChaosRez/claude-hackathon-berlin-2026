@@ -55,3 +55,18 @@ Append-only ledger of research hypotheses, decisions, experiment runs, and evide
   Measures were computed but not interpreted: 2 pairs is far too few, and there is no hand check against `annotations/` yet.
   `networkx` does not import on the project's Python 3.14.1, so `measure.py` and its tests were run under Python 3.13 (`uv run --no-project --python 3.13 ...`).
 - **Next Steps**: Stability check (Task 8) and hand labels (Task 7) before larger runs.
+
+### Entry 4 — 2026-11-07T15:51:21Z
+- **Hypothesis / Question**: Do the extractor and `src/measure.py` agree on which graphs are valid?
+- **Action / Experiment**: Compared the two validators and found they disagreed.
+  `src/validate.py` accepted `implicit_main` graphs and checked coverage; `check()` in `src/measure.py` rejected every graph without exactly one main node and did not check coverage.
+  `check()` in `src/measure.py` now calls `validate()` from `src/validate.py`, so there is one set of rules.
+  `src/measure.py` reads the entity and relation types from the YAML files instead of hard-coding them.
+  The node id rule in `src/validate.py` changed from "ids are 1..n" to "ids are unique and increase", to match the example in `GUIDE.md` section 8 (filler has id 0 there).
+- **Evidence**: `uv run pytest tests`: 47 passed (Python 3.15.1, networkx 3.7), including a test that an extractor YAML graph is measured.
+- **Findings & Honesty**: No graph data changed and no model was called; this only changes which graphs count as valid.
+  Graphs with `implicit_main` are still counted as invalid by `src/measure.py`, now with an explicit message, because `depth`, `main_position` and `main_in_degree` need a main claim; the team has not decided how to handle them.
+  `src/measure.py` now needs the `answer` field in each graph for the coverage check; `GUIDE.md` section 8 does not show that field yet.
+  Correction to Entry 3: networkx now imports on the project's Python (3.15.1 in `.venv`), so `measure.py` and its tests no longer need Python 3.13.
+  The run folders cited in Entries 1 and 3 (`results/extraction/20261107T150706Z/`, `results/extraction/20261107T151902Z/`) are not in the repository, so those results cannot be checked from it.
+- **Next Steps**: The team decides on `implicit_main` and on adding `answer` to `GUIDE.md` section 8; whoever has the run folders commits them (CC BY-SA 4.0, see `LICENSE-data`).

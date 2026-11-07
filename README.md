@@ -126,9 +126,13 @@ does the writer consider the other side? Do they give conditions? Do they end wi
 
 ### Step 3: Build and draw the graph (Tasks 4 and 5)
 
-- `src/extract.py` (to do): send a text and `GUIDE.md` to Claude, get entities and relations back as JSON (format below).
-- Validation: done by `check()` in `src/measure.py` (rules in `GUIDE.md` section 8).
-- `src/draw.py` (to do): draw a graph as an image, with one color per entity type and labeled arrows.
+- `src/extract.py` (done): sends a text, `entity_definition.yaml` and `relation.yaml` to Claude, gets entities and relations back, and saves one YAML graph per answer (format below).
+  If a graph breaks a rule, it asks Claude once more with the errors.
+- Validation (done): `src/validate.py` holds the rules.
+  The extractor and `src/measure.py` both use it, so there is one set of rules.
+- `src/draw.py` (done): turns a graph into a Graphviz drawing, with one color per family of entity types and labeled arrows.
+  The Streamlit app (`app.py`) shows it.
+  Saving a PNG is still open.
 
 ### Step 4: Check the extractor by hand (about 1 hour) — most important
 
@@ -185,16 +189,21 @@ In `results/RESULTS.md` and `JOURNAL.md`:
 - the main result, with the baseline next to it
 - limits (one dataset, one LLM, one extractor)
 
-## Graph format (JSON)
+## Graph format (JSON or YAML)
 
-Nodes are listed in text order.
-Full rules are in `GUIDE.md` section 8.
+Nodes are listed in text order, with ids that increase.
+Full rules are in `GUIDE.md` section 8 and `src/validate.py`.
+The `answer` field holds the original text, so the coverage rule can be checked;
+`src/measure.py` rejects graphs without it.
+The extractor writes the same fields as YAML, plus its run log.
 
 ```json
 {
   "id": "finance_0012_human",
   "source": "human",
   "question": "Should I pay off my mortgage early?",
+  "answer": "It depends on your interest rate. If the rate is low, investing usually earns more.",
+  "implicit_main": false,
   "nodes": [
     {"id": 1, "type": "claim", "text": "It depends on your interest rate.", "main": true, "hedged": true},
     {"id": 2, "type": "condition", "text": "If the rate is low, investing usually earns more."}
@@ -215,16 +224,20 @@ criteria.yaml            measures and comparison method (Task 6 draft)
 analyse logic.md         wider analysis brainstorm
 data_exploration.ipynb   HC3 audit and checks for this project
 scripts/                 get_data.py, filter_jsonl.py
-src/measure.py           validates graphs, computes measures, compares human vs ChatGPT
-tests/                   tests for src/measure.py
+prompts/                 extractor prompts, versioned (extract_v1.md, extract_v2.md)
+src/extract.py           text -> graph YAML, using Claude
+src/validate.py          the graph rules, used by the extractor and by measure.py
+src/measure.py           computes measures, compares human vs ChatGPT
+src/draw.py              graph -> Graphviz drawing
+src/pipeline.py          extract -> graph -> drawing -> measures, for one answer
+app.py                   Streamlit app on top of src/pipeline.py
+tests/                   tests for src/
 data/                    HC3 data, not in git (rebuild with scripts/get_data.py)
 ```
 
 Planned, not created yet:
 
 ```
-prompts/       extractor prompts, versioned (extract_v1.txt, ...)
-src/           extract.py, draw.py
 annotations/   hand-made graphs for checking the extractor
 results/       graphs, numbers, plots, RESULTS.md
 ```
@@ -257,7 +270,8 @@ and an extractor checked by hand.
 - **`CLAUDE.md`**: Project conventions, evidence chain rules, and constraints for AI agents.
 - **`JOURNAL.md`**: Append-only ledger recording research hypotheses, experiment runs, and evidence audits.
 - **`TASKS.md`**: Active task ledger and milestones for the team and agents.
-- **`.claude/skills/judge-submissions/`**: Submission evaluator skill based on the official hackathon rubric.
+- **`.claude/skills/judge-submissions/`**: the organizers' skill for judging submissions, from the event template.
+  It reads GitHub issues labelled `submission` and commits assessments, so it does not check this repository by itself.
 
 ## Setup
 
@@ -296,20 +310,44 @@ Filter options pass through:
 The default `--max-diff 10` is the preferred value; the project allows up to 15.
 The script does not yet prefer opinion questions.
 
-To compute the measures on a folder of graph JSON files:
+To extract graphs (at most 10 pairs while `GUIDE.md` is a draft):
 
 ```bash
-uv run src/measure.py results/graphs --out results/measures.csv
+uv run python -m src.extract --limit 2
+```
+
+It writes one YAML graph per answer to `results/extraction/<run id>/graphs/`,
+and the settings, prompt and schema versions and counts to `run.yaml`.
+It uses the API key in `.env`, or your Claude Code login if there is none (`--backend cli`).
+
+To check a folder of graphs against the rules:
+
+```bash
+uv run python -m src.validate results/extraction/<run id>/graphs
+```
+
+To compute the measures on a folder of graph JSON or YAML files:
+
+```bash
+uv run python -m src.measure results/extraction/<run id>/graphs --out results/measures.csv
 ```
 
 It prints how many graphs are valid and invalid per source,
 lists every invalid graph with its errors,
 and prints the human vs ChatGPT comparison with the split-half baseline.
+Graphs with `implicit_main` (no main claim) are counted as invalid for now,
+because the measures that need a main claim are not defined for them.
+
+To explore single answers in a browser (extract, draw, measure):
+
+```bash
+uv run streamlit run app.py
+```
 
 To run the tests:
 
 ```bash
-uv run --with pytest --with pyyaml pytest tests
+uv run pytest tests
 ```
 
 To re-run the data exploration:
@@ -330,15 +368,20 @@ To run Claude Code with your research loop:
 
 # Scheduled loop: periodically monitors and records progress
 /loop 10m check extractor output and log new results to JOURNAL.md
-
-# Self-evaluate project against the hackathon rubric
-/judge-submissions
 ```
 
 ## Licenses
 
-This project is dual-licensed:
-
 - **Code**: [Apache License 2.0](LICENSE)
 - **Documentation & Written Materials**: [Creative Commons Attribution 4.0 International](LICENSE-docs)
-- **Data derived from HC3**: CC BY-SA 4.0, following the HC3 license.
+- **Data derived from HC3 and FiQA**: [Creative Commons Attribution-ShareAlike 4.0 International](LICENSE-data),
+  following the HC3 license.
+
+CC BY-SA 4.0 covers everything that contains or is derived from HC3 or FiQA text:
+
+- `data/`: downloaded and filtered HC3 (not in git)
+- `annotations/`: hand-made graphs
+- `results/`: extracted graphs, measures and plots
+- `data_exploration.ipynb`: the whole notebook, because its outputs contain HC3 and FiQA text
+
+HC3: Guo et al., [How Close is ChatGPT to Human Experts?](https://arxiv.org/abs/2301.07597) (2023), CC BY-SA 4.0.

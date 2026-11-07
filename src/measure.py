@@ -1,9 +1,10 @@
 """Compute the graph measures defined in criteria.yaml and compare human vs ChatGPT.
 
 Usage:
-    python src/measure.py GRAPH_DIR [--out results/measures.csv] [--seed 0]
+    uv run python -m src.measure GRAPH_DIR [--out results/measures.csv] [--seed 0]
 
-GRAPH_DIR holds one JSON or YAML graph per file (format in GUIDE.md / relation.yaml).
+GRAPH_DIR holds one JSON or YAML graph per file (format in GUIDE.md section 8).
+Each graph must carry the original `answer`, so the coverage rule can be checked.
 Invalid graphs are counted and listed, never silently dropped.
 """
 
@@ -17,16 +18,14 @@ import networkx as nx
 import pandas as pd
 import yaml
 
-# Must match entity_definition.yaml and relation.yaml (checked by tests/test_measure.py).
-ENTITY_TYPES = [
-    "claim", "reason", "evidence", "counterpoint", "rebuttal", "condition",
-    "recommendation", "caveat", "background", "filler", "other",
-]
-RELATION_TYPES = [
-    "supports", "attacks", "refutes", "qualifies", "explains",
-    "elaborates", "summarizes", "concludes", "conflicts",
-]
-GRAPH_TYPES = [t for t in ENTITY_TYPES if t != "filler"]
+from src.schema import load_schema
+from src.validate import validate
+
+# Types come from entity_definition.yaml and relation.yaml, the same source the extractor uses.
+SCHEMA = load_schema()
+NON_NODE_TYPES = SCHEMA.non_node_types  # labelled but not graph nodes (filler)
+GRAPH_TYPES = [t for t in SCHEMA.entity_types if t not in NON_NODE_TYPES]
+RELATION_TYPES = list(SCHEMA.relation_types)
 
 SCALAR_MEASURES = [
     "n_nodes", "n_edges", "n_filler", "edges_per_node", "extra_edge_share",
@@ -35,60 +34,31 @@ SCALAR_MEASURES = [
     "n_qualifies", "n_conflicts", "hedged_share",
 ]
 
+IMPLICIT_MAIN_ERROR = (
+    "implicit_main: no main claim, so depth, main_position and main_in_degree are undefined "
+    "(how to measure these graphs is not decided yet)"
+)
+
 
 def check(graph):
-    """Return a list of problems; an empty list means the graph is valid."""
-    errors = []
-    nodes = graph.get("nodes", [])
-    edges = graph.get("edges", [])
-    ids = [n["id"] for n in nodes]
-    if len(ids) != len(set(ids)):
-        errors.append("duplicate node ids")
-    by_id = {n["id"]: n for n in nodes}
-    for n in nodes:
-        if n.get("type") not in ENTITY_TYPES:
-            errors.append(f"node {n['id']}: unknown type {n.get('type')!r}")
-    mains = [n["id"] for n in nodes if n.get("main")]
-    if len(mains) != 1:
-        errors.append(f"{len(mains)} main claims (need exactly 1)")
-    seen_pairs = set()
-    for e in edges:
-        a, b = e.get("from"), e.get("to")
-        if e.get("type") not in RELATION_TYPES:
-            errors.append(f"edge {a}->{b}: unknown type {e.get('type')!r}")
-        if a not in by_id or b not in by_id:
-            errors.append(f"edge {a}->{b}: points to a missing node")
-            continue
-        if a == b:
-            errors.append(f"edge {a}->{b}: self loop")
-        if (a, b) in seen_pairs:
-            errors.append(f"edge {a}->{b}: more than one edge between the same pair")
-        seen_pairs.add((a, b))
-        if "filler" in (by_id[a]["type"], by_id[b]["type"]):
-            errors.append(f"edge {a}->{b}: touches filler")
-        if e.get("type") == "conflicts" and e.get("primary"):
-            errors.append(f"edge {a}->{b}: conflicts edge cannot be primary")
-    for n in nodes:
-        if n["type"] == "filler" or n.get("main"):
-            continue
-        out = [e for e in edges if e.get("from") == n["id"]]
-        if not out:
-            errors.append(f"node {n['id']}: no outgoing edge")
-        elif sum(bool(e.get("primary")) for e in out) != 1:
-            errors.append(f"node {n['id']}: needs exactly 1 primary edge")
-    if not errors:
-        tree = _primary_tree(graph)
-        if not nx.is_tree(tree.to_undirected()) or any(
-            not nx.has_path(tree, v, mains[0]) for v in tree.nodes
-        ):
-            errors.append("primary edges do not form a tree rooted at the main claim")
+    """Return a list of problems; an empty list means the graph can be measured.
+
+    The rules are those of src/validate.py, which the extractor also uses.
+    Graphs with `implicit_main` pass validation but are not measured yet.
+    """
+    answer = graph.get("answer")
+    if not isinstance(answer, str):
+        return ["no `answer` text: the coverage rule cannot be checked"]
+    errors = validate(graph, answer, SCHEMA)
+    if not errors and graph.get("implicit_main"):
+        errors.append(IMPLICIT_MAIN_ERROR)
     return errors
 
 
 def _full_graph(graph):
     g = nx.DiGraph()
     for n in graph["nodes"]:
-        if n["type"] != "filler":
+        if n["type"] not in NON_NODE_TYPES:
             g.add_node(n["id"], type=n["type"])
     for e in graph["edges"]:
         g.add_edge(e["from"], e["to"], type=e["type"], primary=bool(e.get("primary")))
@@ -116,7 +86,7 @@ def measures(graph):
     """All per-graph measures from criteria.yaml, as a flat dict."""
     g = _full_graph(graph)
     tree = _primary_tree(graph)
-    nodes = [n for n in graph["nodes"] if n["type"] != "filler"]
+    nodes = [n for n in graph["nodes"] if n["type"] not in NON_NODE_TYPES]
     main = next(n["id"] for n in nodes if n.get("main"))
     n_nodes, n_edges = g.number_of_nodes(), g.number_of_edges()
     edge_types = [d["type"] for _, _, d in g.edges(data=True)]
@@ -131,7 +101,7 @@ def measures(graph):
     m = {
         "n_nodes": n_nodes,
         "n_edges": n_edges,
-        "n_filler": sum(n["type"] == "filler" for n in graph["nodes"]),
+        "n_filler": sum(n["type"] in NON_NODE_TYPES for n in graph["nodes"]),
         "edges_per_node": n_edges / n_nodes,
         "extra_edge_share": (
             sum(not d["primary"] for _, _, d in g.edges(data=True)) / n_edges if n_edges else 0.0
@@ -165,8 +135,8 @@ def load(graph_dir):
             text = path.read_text()
             graph = yaml.safe_load(text) if path.suffix == ".yaml" else json.loads(text)
             errors = check(graph)
-        except (json.JSONDecodeError, yaml.YAMLError, KeyError, TypeError) as exc:
-            graph, errors = {}, [f"unreadable: {exc}"]
+        except (json.JSONDecodeError, yaml.YAMLError, KeyError, TypeError, AttributeError) as exc:
+            graph, errors = {}, [f"unreadable: {exc!r}"]
         if errors:
             invalid.append((path.name, graph.get("source"), errors))
             continue
