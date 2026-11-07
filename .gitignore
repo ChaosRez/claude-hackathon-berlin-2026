@@ -64,3 +64,6 @@ results/app/
 # Local-only study data (HC3 and arg-microtexts text; see experiments/approach_study/PLAN.md)
 data/approach_study
 data/external
+
+# Claude Code worktrees (local only)
+.claude/worktrees/
