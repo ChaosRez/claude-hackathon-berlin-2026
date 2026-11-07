@@ -4,9 +4,11 @@ import random
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src import pipeline
 from src.draw import highlight_html, legend_html
+from src.viz3d import render_html
 from src.extract import load_items
 from src.schema import ROOT
 from src.settings import get_settings
@@ -66,8 +68,16 @@ if force or not saved:
 with st.spinner(f"Extracting with {settings.model}… (about 1 minute per answer)"):
     results = pipeline.run(items, settings, force=force)
 
-st.markdown(legend_html(), unsafe_allow_html=True)
-for col, it, r in zip(st.columns(len(items)), items, results):
+tab3d, tab2d = st.tabs(["3D shape (Mind Graft view)", "2D graph"])
+with tab3d:  # both answers in one space: z = words, y = depth, x = opposition
+    if any(r.graph.number_of_nodes() for r in results):
+        components.html(render_html(items[0]["question"], {it["source"]: r.doc for it, r in zip(items, results)}), height=680)
+    else:
+        st.info("No graph to draw yet.")
+with tab2d:
+    st.markdown(legend_html(), unsafe_allow_html=True)
+    cols2d = st.columns(len(items))
+for col, it, r in zip(cols2d, items, results):
     with col:
         doc = r.doc
         st.markdown(f"#### {it['source']} · {len(it['answer'].split())} words")

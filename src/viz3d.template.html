@@ -1,0 +1,183 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 3D view of one answer pair. Adapted from mind-graft/viewer/language_analyser.template.html (single-row view).
+     Data is injected by src/viz3d.py at the DATA marker. -->
+<style>
+:root{--bg:#f6f3ee;--ink:#111;--line:#e4ddd2;--line2:#cfc6b8}
+[hidden]{display:none!important}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:300 13px/1.45 "Helvetica Neue",Helvetica,Arial,sans-serif}
+b{font-weight:500}
+#wrap{position:relative;height:100%;overflow:hidden}
+#gl{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+.panel{position:absolute;background:#fffdf9f2;border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+#legend{left:12px;top:12px;width:228px;max-height:calc(100% - 24px);overflow:auto;display:flex;flex-direction:column;gap:7px}
+h4{font:500 10.5px/1 "Helvetica Neue",Helvetica,Arial,sans-serif;letter-spacing:.1em;text-transform:uppercase;margin:4px 0 0}
+.it{display:flex;align-items:center;gap:7px;line-height:1.2}
+.types{display:grid;grid-template-columns:1fr 1fr;gap:2px 6px}
+.types img{width:22px;height:22px;flex:none}
+.sw{width:12px;height:12px;border-radius:50%;flex:none}
+#controls{right:12px;top:12px;width:250px;display:flex;flex-direction:column;gap:8px}
+#controls label{display:flex;align-items:center;gap:8px}
+#controls input{flex:1;accent-color:var(--ink)}
+.seg{display:flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{flex:1;font:inherit;font-size:12px;background:transparent;color:var(--ink);border:0;padding:6px 2px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:#fff;font-weight:500}
+#card{right:12px;bottom:12px;width:min(340px,calc(100% - 280px));display:flex;flex-direction:column;gap:4px}
+#card .ty{display:flex;align-items:center;gap:8px;font-size:17px}
+#card p{margin:0}
+.hint{position:absolute;left:256px;bottom:12px;font-size:11px;color:#555;max-width:340px;pointer-events:none}
+</style>
+<div id="wrap">
+  <canvas id="gl"></canvas>
+  <div id="legend" class="panel">
+    <h4>Answer · colour</h4><div id="legSides"></div>
+    <h4>Entity type · shape</h4><div class="types" id="legTypes"></div>
+    <h4>Relation · line</h4><div id="legRels"></div>
+  </div>
+  <div id="controls" class="panel">
+    <label>Slide apart <input type="range" id="sep" min="0" max="100" value="0"></label>
+    <div class="seg" id="cam"><button data-v="3d">3D</button><button data-v="elev">Depth (y)</button><button data-v="top">Top (x)</button><button data-v="end">End-on</button></div>
+  </div>
+  <div id="card" class="panel" hidden></div>
+  <div class="hint">z = word position · y = depth (steps from the question) · x = opposition: counterpoint far, condition and caveat near, rebuttal on the other side. Drag to orbit, scroll to zoom, click a shape.</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const DATA = /*DATA*/;
+const SIDEC = {human:0xf29a2e, chatgpt:0xa43fb3, user:0xf29a2e}, CSS = c => "#" + c.toString(16).padStart(6, "0");
+const NAMES = {human:"Human", chatgpt:"ChatGPT", user:"Your text"};
+const RELS = {supports:{name:"Supports (builds on)", dash:null, svg:""}, disagrees:{name:"Disagrees (attacks, refutes, conflicts)", dash:[.26,.14], svg:"7 4"},
+  qualifies:{name:"Qualifies", dash:[.26,.11,.05,.11], svg:"7 3 2 3"}, reinforces:{name:"Reinforces (summarizes)", dash:[.05,.11], svg:"2 4"}};
+const WZ = .05, R0 = 1.4, DR = .85, TW = 2, SCALE = 2.2;
+const pos = (w, d, x) => new THREE.Vector3(-x*TW, R0 + d*DR, w*WZ);   // Mind Graft's single-row placement
+
+/* ---------- scene ---------- */
+const canvas = document.getElementById("gl");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true}); renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setClearColor(0xf6f3ee, 1);
+const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(42, 1, .1, 800);
+const controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = .08;
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe8dccb, .75)); const sun = new THREE.DirectionalLight(0xffffff, .65); sun.position.set(20, 30, 10); scene.add(sun);
+const world = new THREE.Group(); scene.add(world);
+// one solid form per entity type (Mind Graft's shapes, mapped to our types)
+const GEO = {
+  claim: new THREE.BoxGeometry(.18,.18,.18), reason: new THREE.ConeGeometry(.11,.24,18), evidence: new THREE.CylinderGeometry(.085,.085,.22,18),
+  background: new THREE.BoxGeometry(.24,.24,.05), counterpoint: new THREE.TetrahedronGeometry(.16), condition: new THREE.SphereGeometry(.13,18,10,0,Math.PI*2,0,Math.PI/2),
+  rebuttal: new THREE.OctahedronGeometry(.15), recommendation: new THREE.ConeGeometry(.13,.22,4), caveat: new THREE.DodecahedronGeometry(.13), other: new THREE.CylinderGeometry(.12,.12,.045,22)};
+const FALLBACK = new THREE.SphereGeometry(.105,16,12);
+const marker = new THREE.Mesh(new THREE.SphereGeometry(.48, 16, 12), new THREE.MeshBasicMaterial({color:0x111111, wireframe:true})); marker.visible = false; scene.add(marker);
+
+const THUMB = {};
+(function(){ const c = document.createElement("canvas"); c.width = c.height = 96;
+  const r = new THREE.WebGLRenderer({canvas:c, antialias:true, alpha:true, preserveDrawingBuffer:true}); r.setClearColor(0, 0);
+  const s = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, 1, .1, 10); cam.position.set(0, 0, 1.1);
+  s.add(new THREE.HemisphereLight(0xffffff, 0xd9cdb8, .8)); const dl = new THREE.DirectionalLight(0xffffff, .7); dl.position.set(1, 2, 2); s.add(dl);
+  const mat = new THREE.MeshLambertMaterial({color:0x8a8178, side:THREE.DoubleSide});
+  Object.keys(GEO).forEach(t => { const m = new THREE.Mesh(GEO[t], mat); m.rotation.set(.5, .7, 0); s.add(m); r.render(s, cam); THUMB[t] = c.toDataURL(); s.remove(m); });
+  r.dispose(); })();
+
+function sprite(text, size, weight){
+  const c = document.createElement("canvas"), x = c.getContext("2d"), font = `${weight||300} 48px "Helvetica Neue", Helvetica, Arial, sans-serif`; x.font = font;
+  const w = Math.ceil(x.measureText(text).width) + 24; c.width = w; c.height = 72; x.font = font; x.fillStyle = "#111"; x.textBaseline = "middle"; x.fillText(text, 12, 38);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false})); s.scale.set(size*w/72, size, 1); return s;
+}
+// patterned line as plain segments, so dash, dot and dash-dot work in WebGL
+function pattern(out, a, b, dash){
+  if (!dash){ out.push(a.x,a.y,a.z, b.x,b.y,b.z); return; }
+  const d = b.clone().sub(a), L = d.length(); if (!L) return; d.divideScalar(L); let s = 0, i = 0;
+  while (s < L){ const on = dash[i % dash.length], off = dash[(i+1) % dash.length], e = Math.min(L, s + on);
+    out.push(a.x+d.x*s, a.y+d.y*s, a.z+d.z*s, a.x+d.x*e, a.y+d.y*e, a.z+d.z*e); s = e + off; i += 2; }
+}
+// thin solid rods keep their thickness (WebGL lines are always 1px)
+const rodGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+function rods(arr, r){
+  const n = arr.length / 6, im = new THREE.InstancedMesh(rodGeo, new THREE.MeshBasicMaterial({color:0x111111}), n);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), dir = new THREE.Vector3(), up = new THREE.Vector3(0,1,0), q = new THREE.Quaternion(), m = new THREE.Matrix4(), sc = new THREE.Vector3();
+  for (let i = 0; i < n; i++){ a.fromArray(arr, i*6); b.fromArray(arr, i*6+3); dir.subVectors(b, a); const L = dir.length() || 1e-6;
+    q.setFromUnitVectors(up, dir.divideScalar(L)); m.compose(a.clone().add(b).multiplyScalar(.5), q, sc.set(r, L, r)); im.setMatrixAt(i, m); }
+  return im;
+}
+
+/* ---------- build ---------- */
+let picks = [], groups = [], sel = null, cam = "3d";
+const maxW = Math.max(1, ...DATA.sides.map(s => s.words)), maxD = Math.max(1, ...DATA.sides.flatMap(s => s.ents.map(e => e.depth)));
+(function guides(){
+  const ink = new THREE.LineBasicMaterial({color:0x111111}), faint = new THREE.LineBasicMaterial({color:0xd8cfc2});
+  world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([pos(0,0,0), pos(maxW+10,0,0)]), ink));
+  for (let w = 0; w <= maxW; w += 25){ const s = sprite(String(w), .45); s.position.copy(pos(w,0,0)).add(new THREE.Vector3(0,-.55,0)); world.add(s); }
+  const zl = sprite("z · words", .45, 500); zl.position.copy(pos(maxW+22,0,0)).add(new THREE.Vector3(0,-.55,0)); world.add(zl);
+  for (let d = 1; d <= maxD; d++){ const a = pos(0,d,0), b = pos(maxW,d,0); a.x = b.x = -2.6;
+    world.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([a, b]), faint));
+    const s = sprite("y · depth " + d, .38); s.position.set(-3.6, a.y, 0); world.add(s); }
+})();
+DATA.sides.forEach(side => {
+  const g = new THREE.Group(); g.userData.side = side.name; world.add(g); groups.push(g);
+  const P = k => k < 0 ? pos(0,0,0) : pos(side.ents[k].mid, side.ents[k].depth, side.ents[k].x);
+  const seg = []; side.links.forEach(l => pattern(seg, P(l.from), P(l.to), RELS[l.style].dash)); if (seg.length) g.add(rods(seg, .03));
+  const q = new THREE.Mesh(new THREE.SphereGeometry(.15, 16, 12), new THREE.MeshLambertMaterial({color:0x111111})); q.position.copy(pos(0,0,0)); g.add(q);
+  const lab = sprite(NAMES[side.name] || side.name, .6, 500); lab.position.copy(pos(0,0,0)).add(new THREE.Vector3(0, groups.length === 1 ? .9 : -.9, -1.4)); g.add(lab);
+  const byType = {}; side.ents.forEach((e, k) => (byType[e.type] = byType[e.type] || []).push({side, k, e, v:P(k)}));
+  const m = new THREE.Matrix4(), sc = new THREE.Matrix4(), rot = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(.4,.6,0));
+  Object.entries(byType).forEach(([t, list]) => {
+    const im = new THREE.InstancedMesh(GEO[t] || FALLBACK, new THREE.MeshLambertMaterial({color:0xffffff, side:THREE.DoubleSide}), list.length);
+    list.forEach((it, i) => { const k = SCALE * (it.e.main ? 1.4 : 1); m.makeTranslation(it.v.x, it.v.y, it.v.z).multiply(rot).multiply(sc.makeScale(k,k,k));
+      im.setMatrixAt(i, m); im.setColorAt(i, new THREE.Color(SIDEC[side.name] ?? 0x888888)); });
+    im.userData.list = list; g.add(im); picks.push(im); });
+});
+
+/* ---------- controls ---------- */
+const sepIn = document.getElementById("sep");
+function applySep(){ const two = groups.length > 1, off = sepIn.value/100 * 9; groups.forEach((g, i) => g.position.y = two ? (i === 0 ? off : -off) : 0); placeMarker(); }
+sepIn.oninput = applySep; sepIn.onchange = () => camPreset(cam);  // refit once the slider is released
+// fit box from the real entity positions (an InstancedMesh's own box ignores where its instances are)
+function bounds(){ const box = new THREE.Box3(); box.expandByPoint(pos(0,0,0)); box.expandByPoint(pos(maxW,maxD,0));
+  picks.forEach(im => im.userData.list.forEach(it => box.expandByPoint(it.v.clone().add(im.parent.position))));
+  groups.forEach(g => box.expandByPoint(pos(0,0,0).add(g.position))); return box; }
+function camPreset(v){
+  const box = bounds(); const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()), R = Math.max(size.x, size.y, size.z);
+  controls.target.copy(c); cam = v;
+  if (v === "elev") camera.position.set(c.x + R*1.6, c.y, c.z);
+  else if (v === "end") camera.position.set(c.x, c.y, box.min.z - R*1.1);
+  else if (v === "top") camera.position.set(c.x - R*.02, c.y + R*1.7, c.z);
+  else camera.position.set(c.x + R*1.15, c.y + R*.5, c.z - R*.75);
+  document.querySelectorAll("#cam button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === v));
+}
+document.querySelectorAll("#cam button").forEach(b => b.onclick = () => camPreset(b.dataset.v));
+
+/* ---------- legend ---------- */
+document.getElementById("legSides").innerHTML = DATA.sides.map(s => `<div class="it"><span class="sw" style="background:${CSS(SIDEC[s.name] ?? 0x888888)}"></span>${NAMES[s.name] || s.name}<span style="color:#777">&nbsp;· ${s.words} words · ${s.ents.length} entities</span></div>`).join("");
+const used = new Set(DATA.sides.flatMap(s => s.ents.map(e => e.type)));
+document.getElementById("legTypes").innerHTML = Object.keys(GEO).map(t => `<div class="it" style="opacity:${used.has(t) ? 1 : .35}"><img src="${THUMB[t]}" alt="">${t}</div>`).join("");
+document.getElementById("legRels").innerHTML = Object.values(RELS).map(r => `<div class="it"><svg width="34" height="10" aria-hidden="true"><line x1="1" y1="5" x2="33" y2="5" stroke="#111" stroke-width="3" ${r.svg ? `stroke-dasharray="${r.svg}"` : ""}/></svg>${r.name}</div>`).join("");
+
+/* ---------- picking ---------- */
+const card = document.getElementById("card"), ray = new THREE.Raycaster(), mouse = new THREE.Vector2();
+const nm = (side, k) => k < 0 ? "the question" : `#${side.ents[k].id} ${side.ents[k].type}`;
+function placeMarker(){ marker.visible = false; if (!sel) return;
+  for (const im of picks){ const i = im.userData.list.findIndex(it => it.side === sel.side && it.k === sel.k);
+    if (i >= 0){ const v = im.userData.list[i].v.clone(); im.parent.localToWorld(v); marker.position.copy(v); marker.visible = true; return; } } }
+function showCard(side, k){
+  const e = side.ents[k]; sel = {side, k}; placeMarker();
+  const out = side.links.filter(l => l.from === k).map(l => `${l.type} → ${nm(side, l.to)}${l.primary ? "" : " (extra)"}`);
+  const inn = side.links.filter(l => l.to === k).map(l => `${nm(side, l.from)} ${l.type} this`);
+  card.hidden = false;
+  card.innerHTML = `<div class="ty"><img src="${THUMB[e.type] || ""}" width="26" height="26" alt=""><b>${e.type}</b>${e.main ? " · main claim" : ""}${e.hedged ? " · hedged" : ""}</div>
+    <div style="color:${CSS(SIDEC[side.name] ?? 0x888888)}">${NAMES[side.name] || side.name} · #${e.id} · depth ${e.depth} · word ${Math.round(e.mid)}</div><p></p>
+    <div style="font-size:12px;color:#555">${out.concat(inn).join("<br>")}</div>`;
+  card.querySelector("p").textContent = e.text;
+}
+let down = null;
+canvas.addEventListener("pointerdown", e => down = [e.clientX, e.clientY]);
+canvas.addEventListener("pointerup", e => {
+  if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 5){
+    const r = canvas.getBoundingClientRect(); mouse.set((e.clientX - r.left)/r.width*2 - 1, -(e.clientY - r.top)/r.height*2 + 1); ray.setFromCamera(mouse, camera);
+    const hit = ray.intersectObjects(picks)[0];
+    if (hit){ const it = hit.object.userData.list[hit.instanceId]; showCard(it.side, it.k); } else { sel = null; card.hidden = true; marker.visible = false; }
+  } down = null; });
+
+function resize(){ const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(canvas);
+resize(); camPreset("3d");
+(function loop(){ controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+</script>
