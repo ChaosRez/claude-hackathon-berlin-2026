@@ -3,7 +3,7 @@
 Usage:
     python src/measure.py GRAPH_DIR [--out results/measures.csv] [--seed 0]
 
-GRAPH_DIR holds one JSON graph per file (format in GUIDE.md / relation.yaml).
+GRAPH_DIR holds one JSON or YAML graph per file (format in GUIDE.md / relation.yaml).
 Invalid graphs are counted and listed, never silently dropped.
 """
 
@@ -15,6 +15,7 @@ from pathlib import Path
 
 import networkx as nx
 import pandas as pd
+import yaml
 
 # Must match entity_definition.yaml and relation.yaml (checked by tests/test_measure.py).
 ENTITY_TYPES = [
@@ -158,11 +159,13 @@ def measures(graph):
 def load(graph_dir):
     """Return (table of measures for valid graphs, list of (file, errors) for invalid ones)."""
     rows, invalid = [], []
-    for path in sorted(Path(graph_dir).glob("*.json")):
+    paths = sorted([*Path(graph_dir).glob("*.json"), *Path(graph_dir).glob("*.yaml")])
+    for path in paths:
         try:
-            graph = json.loads(path.read_text())
+            text = path.read_text()
+            graph = yaml.safe_load(text) if path.suffix == ".yaml" else json.loads(text)
             errors = check(graph)
-        except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        except (json.JSONDecodeError, yaml.YAMLError, KeyError, TypeError) as exc:
             graph, errors = {}, [f"unreadable: {exc}"]
         if errors:
             invalid.append((path.name, graph.get("source"), errors))

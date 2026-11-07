@@ -14,13 +14,13 @@ def build_graph(record: dict, schema: Schema | None = None) -> nx.DiGraph:
     g = nx.DiGraph(id=record["id"], source=record["source"], status=record["status"],
                    implicit_main=record["implicit_main"])
     g.graph["non_node_counts"] = {t: 0 for t in schema.non_node_types}
-    for e in record["entities"]:
+    for e in record["nodes"]:
         if e["type"] in schema.non_node_types:
             g.graph["non_node_counts"][e["type"]] += 1
             continue
         g.add_node(e["id"], type=e["type"], main=e["main"], hedged=e["hedged"], kind=e["kind"], text=e["text"])
-    for r in record["relations"]:
-        g.add_edge(r["from"], r["to"], type=r["type"])
+    for r in record["edges"]:
+        g.add_edge(r["from"], r["to"], type=r["type"], primary=r["primary"])
     return g
 
 

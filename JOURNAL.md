@@ -29,3 +29,15 @@ Append-only ledger of research hypotheses, decisions, experiment runs, and evide
 - **Action**: Output format changed to YAML (schema YAML in, graph YAML out).
   The files of run `20261107T150706Z` were converted from JSON/CSV to `graphs/*.yaml` and `run.yaml`, without new model calls.
   `src/validate.py` still finds 4/4 valid.
+
+### Entry 3 — 2026-11-07T15:19:02Z
+- **Action / Experiment**: Switched the extractor to the team's `relation.yaml` (9 relations, several edges per node, one `primary` edge per node, primary edges form a tree rooted at the main claim).
+  Removed my draft `relation_definition.yaml`.
+  New prompt version `prompts/extract_v2.md`; graph files now use `nodes` and `edges`, the format `src/measure.py` reads.
+  `src/measure.py` now also reads `.yaml` graphs.
+  Ran `uv run python -m src.extract --limit 2` (4 texts), API backend, `claude-opus-5-5`, effort `high`.
+- **Evidence**: `results/extraction/20261107T151902Z/`.
+- **Findings & Honesty**: 4 of 4 valid on the first attempt under `src/validate.py`; `src/measure.py` also reports 4 valid, 0 invalid.
+  Measures were computed but not interpreted: 2 pairs is far too few, and there is no hand check against `annotations/` yet.
+  `networkx` does not import on the project's Python 3.14.1, so `measure.py` and its tests were run under Python 3.13 (`uv run --no-project --python 3.13 ...`).
+- **Next Steps**: Stability check (Task 8) and hand labels (Task 7) before larger runs.

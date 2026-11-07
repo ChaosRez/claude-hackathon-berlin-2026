@@ -6,7 +6,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_ENTITIES = ROOT / "entity_definition.yaml"
-DEFAULT_RELATIONS = ROOT / "relation_definition.yaml"
+DEFAULT_RELATIONS = ROOT / "relation.yaml"
 
 
 @dataclass(frozen=True)
@@ -16,7 +16,7 @@ class Schema:
     entity_types: tuple[str, ...]
     relation_types: tuple[str, ...]
     non_node_types: frozenset[str]  # labeled but not graph nodes (filler)
-    edge_optional: frozenset[str]  # may have no outgoing edge
+    never_primary: frozenset[str]  # relations that are always extra edges (conflicts)
     evidence_kinds: tuple[str, ...]
 
     def output_json_schema(self) -> dict:
@@ -36,24 +36,25 @@ class Schema:
             "required": ["id", "type", "text", "main", "hedged", "kind", "note"],
             "additionalProperties": False,
         }
-        relation = {
+        edge = {
             "type": "object",
             "properties": {
                 "from": {"type": "integer"},
                 "to": {"type": "integer"},
                 "type": {"type": "string", "enum": list(self.relation_types)},
+                "primary": {"type": "boolean"},
             },
-            "required": ["from", "to", "type"],
+            "required": ["from", "to", "type", "primary"],
             "additionalProperties": False,
         }
         return {
             "type": "object",
             "properties": {
-                "entities": {"type": "array", "items": entity},
-                "relations": {"type": "array", "items": relation},
+                "nodes": {"type": "array", "items": entity},
+                "edges": {"type": "array", "items": edge},
                 "implicit_main": {"type": "boolean"},
             },
-            "required": ["entities", "relations", "implicit_main"],
+            "required": ["nodes", "edges", "implicit_main"],
             "additionalProperties": False,
         }
 
@@ -67,18 +68,17 @@ def load_schema(entities_path: Path = DEFAULT_ENTITIES, relations_path: Path = D
     entities = ent["entities"]
     non_node = {name for name, spec in entities.items() if str(spec.get("graph", "")).startswith("not a node")}
     kinds = tuple(entities.get("evidence", {}).get("attributes", {}).get("kind", {}).keys())
-    edge_optional = set(rel.get("edge_optional") or [])
-    unknown = edge_optional - set(entities)
-    if unknown:
-        raise ValueError(f"edge_optional names unknown entity types: {sorted(unknown)}")
+    relations = rel["relations"]
+    never_primary = {name for name, spec in relations.items()
+                     if str(spec.get("primary", "")).lower().startswith("never")}
 
     return Schema(
         entity_text=entity_text,
         relation_text=relation_text,
         entity_types=tuple(entities),
-        relation_types=tuple(rel["relations"]),
+        relation_types=tuple(relations),
         non_node_types=frozenset(non_node),
-        edge_optional=frozenset(edge_optional),
+        never_primary=frozenset(never_primary),
         evidence_kinds=kinds,
     )
 

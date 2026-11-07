@@ -5,7 +5,7 @@ Usage:
   uv run python -m src.extract --pairs 0,5,9 --sources human
 
 Writes to results/extraction/<run_id>/:
-  graphs/<id>.yaml   one file per answer: its entities, relations and check result
+  graphs/<id>.yaml   one file per answer: nodes (entities), edges (relations), check result
   run.yaml           settings, prompt and schema versions, counts
 
 Backends:
@@ -128,7 +128,7 @@ BACKENDS = {"api": call_api, "cli": call_cli}
 def extract_one(item: dict, system: str, schema: Schema, json_schema: dict, args) -> dict:
     call = BACKENDS[args.backend]
     user = build_user_prompt(item["question"], item["answer"])
-    record = {**item, "status": "error", "attempts": [], "entities": [], "relations": [],
+    record = {**item, "status": "error", "attempts": [], "nodes": [], "edges": [],
               "implicit_main": False, "errors": []}
     prompt = user
     for attempt in range(args.retries + 1):
@@ -140,7 +140,7 @@ def extract_one(item: dict, system: str, schema: Schema, json_schema: dict, args
             continue
         errors = validate(out, item["answer"], schema)
         record["attempts"].append({"attempt": attempt, **meta, "errors": errors})
-        record.update(entities=out["entities"], relations=out["relations"],
+        record.update(nodes=out["nodes"], edges=out["edges"],
                       implicit_main=out["implicit_main"], errors=errors,
                       status="valid" if not errors else "invalid")
         if not errors:
@@ -169,15 +169,16 @@ def sha(path: Path) -> str:
 
 
 GRAPH_KEYS = ["id", "pair", "source", "question", "status", "errors", "implicit_main",
-              "entities", "relations", "answer", "attempts"]
+              "nodes", "edges", "answer", "attempts"]
 ENTITY_KEYS = ["id", "type", "main", "hedged", "kind", "note", "text"]
 
 
 def graph_document(rec: dict) -> dict:
     """Fixed key order, so the YAML files read top to bottom: result first, raw answer and log last."""
     doc = {k: rec[k] for k in GRAPH_KEYS}
-    doc["entities"] = [{k: e[k] for k in ENTITY_KEYS} for e in rec["entities"]]
-    doc["relations"] = [{"from": r["from"], "type": r["type"], "to": r["to"]} for r in rec["relations"]]
+    doc["nodes"] = [{k: n[k] for k in ENTITY_KEYS} for n in rec["nodes"]]
+    doc["edges"] = [{"from": e["from"], "type": e["type"], "to": e["to"], "primary": e["primary"]}
+                    for e in rec["edges"]]
     return doc
 
 
@@ -191,7 +192,7 @@ def main() -> None:
     p.add_argument("--sources", default="human,chatgpt")
     p.add_argument("--entities", type=Path, default=DEFAULT_ENTITIES)
     p.add_argument("--relations", type=Path, default=DEFAULT_RELATIONS)
-    p.add_argument("--prompt", type=Path, default=ROOT / "prompts" / "extract_v1.md")
+    p.add_argument("--prompt", type=Path, default=ROOT / "prompts" / "extract_v2.md")
     p.add_argument("--backend", choices=["auto", "api", "cli"], default="auto")
     p.add_argument("--model", default="claude-opus-5-5")
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
@@ -236,8 +237,8 @@ def main() -> None:
             rec = fut.result()
             records.append(rec)
             write_yaml(out_dir / "graphs" / f"{rec['id']}.yaml", graph_document(rec))
-            print(f"  {rec['id']}: {rec['status']} ({len(rec['entities'])} entities, "
-                  f"{len(rec['relations'])} relations, {len(rec['attempts'])} attempt(s))")
+            print(f"  {rec['id']}: {rec['status']} ({len(rec['nodes'])} nodes, "
+                  f"{len(rec['edges'])} edges, {len(rec['attempts'])} attempt(s))")
     records.sort(key=lambda r: r["id"])
 
     counts = {s: sum(r["status"] == s for r in records) for s in ("valid", "invalid", "error")}
