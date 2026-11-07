@@ -1,0 +1,27 @@
+# Made-up example (GUIDE.md section 5) in the extractor's output format. Not HC3 data.
+id: example_human
+pair: null
+source: human
+question: Should I pay off my mortgage early or invest?
+status: valid
+errors: []
+implicit_main: false
+nodes:
+- {id: 1, type: filler, main: false, hedged: false, kind: null, note: null, text: Good question!}
+- {id: 2, type: claim, main: true, hedged: true, kind: null, note: null, text: 'In most cases, investing is the better choice.'}
+- {id: 3, type: reason, main: false, hedged: false, kind: null, note: null, text: Stocks have historically returned more than typical mortgage rates.}
+- {id: 4, type: evidence, main: false, hedged: false, kind: fact, note: null, text: 'The S&P 500 returned about 10% a year since 1957.'}
+- {id: 5, type: counterpoint, main: false, hedged: false, kind: null, note: null, text: 'However, paying off the loan is a risk-free return.'}
+- {id: 6, type: rebuttal, main: false, hedged: false, kind: null, note: null, text: That matters less when your rate is low.}
+- {id: 7, type: condition, main: false, hedged: true, kind: null, note: null, text: 'If your rate is above 6%, paying it off can make sense.'}
+- {id: 8, type: recommendation, main: false, hedged: false, kind: null, note: null, text: So check your rate before you decide.}
+edges:
+- {from: 3, type: supports, to: 2, primary: true}
+- {from: 4, type: supports, to: 3, primary: true}
+- {from: 5, type: attacks, to: 2, primary: true}
+- {from: 6, type: refutes, to: 5, primary: true}
+- {from: 7, type: qualifies, to: 2, primary: true}
+- {from: 8, type: concludes, to: 7, primary: true}
+- {from: 8, type: concludes, to: 2, primary: false}
+answer: 'Good question! In most cases, investing is the better choice. Stocks have historically returned more than typical mortgage rates. The S&P 500 returned about 10% a year since 1957. However, paying off the loan is a risk-free return. That matters less when your rate is low. If your rate is above 6%, paying it off can make sense. So check your rate before you decide.'
+attempts: []
