@@ -7,7 +7,7 @@ Steps refer to the plan in `README.md`.
 
 ## Priority 0 (Core)
 
-- [ ] Task 1: Get the data (Step 1)
+- [Done] Task 1: Get the data (Step 1)
   - Load HC3 `finance`.
   - Keep 100 questions where the human and ChatGPT answers differ by at most 15 words (10 or less preferred).
   - If fewer than 100 exist, record the real number in `JOURNAL.md`.
