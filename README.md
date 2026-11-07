@@ -385,6 +385,23 @@ Saved graphs in `results/app/graphs/` are reused, unless you tick `Re-extract`.
 If no API key is set, the app falls back to your Claude Code login (`EXTRACT_BACKEND=cli`).
 `.env.example` lists the other optional settings.
 
+## Run the 3D Language Sails / Analyser (Mind Graft)
+
+Language Sails is an interactive 3D Three.js visualizer located in `mind-graft/`. It models argumentation topology as orbits and "sails" across human and LLM answers.
+
+It requires **no API keys** and has zero external dependencies (pure Three.js and Python standard library):
+
+```bash
+# Option 1: Open directly in your browser
+open mind-graft/viewer/language_analyser.html
+# Or for the sails view:
+open mind-graft/viewer/language_sails.html
+
+# Option 2: Serve via local HTTP server
+python3 -m http.server 8000 --directory mind-graft/viewer
+# Visit http://localhost:8000/language_analyser.html in your browser
+```
+
 ## Working with Claude Code
 
 To run Claude Code with your research loop:
