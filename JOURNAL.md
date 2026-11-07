@@ -25,3 +25,33 @@ Append-only ledger of research hypotheses, decisions, experiment runs, and evide
 - **Findings & Honesty**: All three YAML files are drafts, not agreed by the team. `GUIDE.md` is still DRAFT. No extractor exists, so nothing here is a result.
 - **Next Steps**: Team review of `GUIDE.md`; two people hand-label the same 2 texts (Task 3); build `src/extract.py` (Task 4).
 
+
+### Entry 1 — 2026-11-07T15:07:06Z
+- **Hypothesis / Question**: Can the extractor turn an answer into entities and relations that follow `entity_definition.yaml` (v0.1, draft) and `relation_definition.yaml` (v0.1, draft)?
+- **Action / Experiment**: Built `src/extract.py`, `src/validate.py`, `src/schema.py`, `src/build_graph.py` and prompt `prompts/extract_v1.md`.
+  Ran `uv run python -m src.extract --limit 2` (pairs 0 and 1, human and ChatGPT, 4 texts), model `claude-opus-5-5`, effort `high`, API backend.
+  This is a smoke test only: `GUIDE.md` is still a draft, so the extractor caps runs at 10 pairs.
+- **Evidence**: `results/extraction/20261107T150706Z/` (`run.json`, `graphs/`, `entities.csv`, `relations.csv`).
+- **Findings & Honesty**: 4 of 4 texts valid on the first attempt, 0 invalid, 0 errored.
+  An earlier run of the same 4 texts errored 4 of 4 because of a bug in my result handling (`_request_id` missing on streamed responses), not the model; the bug was fixed and that run's folder deleted.
+  "Valid" only means the rules are met (coverage, one main claim, allowed types, edge counts); no hand check against `annotations/` yet, so accuracy is unknown.
+  Observed: `background` and `caveat` nodes often have no edge (allowed by `edge_optional`), so some graphs are forests, not trees.
+  `finance_0000_chatgpt` labels "the ticker symbol may vary..." as `counterpoint`; `caveat` is arguable.
+- **Next Steps**: Team decides on `edge_optional` and the `refutation`→`counterpoint` rename; hand-label texts (Task 7) before any larger run.
+
+### Entry 2 — 2026-11-07
+- **Action**: Output format changed to YAML (schema YAML in, graph YAML out).
+  The files of run `20261107T150706Z` were converted from JSON/CSV to `graphs/*.yaml` and `run.yaml`, without new model calls.
+  `src/validate.py` still finds 4/4 valid.
+
+### Entry 3 — 2026-11-07T15:19:02Z
+- **Action / Experiment**: Switched the extractor to the team's `relation.yaml` (9 relations, several edges per node, one `primary` edge per node, primary edges form a tree rooted at the main claim).
+  Removed my draft `relation_definition.yaml`.
+  New prompt version `prompts/extract_v2.md`; graph files now use `nodes` and `edges`, the format `src/measure.py` reads.
+  `src/measure.py` now also reads `.yaml` graphs.
+  Ran `uv run python -m src.extract --limit 2` (4 texts), API backend, `claude-opus-5-5`, effort `high`.
+- **Evidence**: `results/extraction/20261107T151902Z/`.
+- **Findings & Honesty**: 4 of 4 valid on the first attempt under `src/validate.py`; `src/measure.py` also reports 4 valid, 0 invalid.
+  Measures were computed but not interpreted: 2 pairs is far too few, and there is no hand check against `annotations/` yet.
+  `networkx` does not import on the project's Python 3.14.1, so `measure.py` and its tests were run under Python 3.13 (`uv run --no-project --python 3.13 ...`).
+- **Next Steps**: Stability check (Task 8) and hand labels (Task 7) before larger runs.
