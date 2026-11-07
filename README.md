@@ -216,6 +216,22 @@ and an extractor checked by hand.
 - **`TASKS.md`**: Active task ledger and milestones for the team and agents.
 - **`.claude/skills/judge-submissions/`**: Submission evaluator skill based on the official hackathon rubric.
 
+## Setup
+
+Install [uv](https://docs.astral.sh/uv/), then install the dependencies:
+
+```bash
+uv sync
+```
+
+To re-run the data exploration:
+
+```bash
+uv run --with nbconvert jupyter nbconvert --to notebook --execute --inplace data_exploration.ipynb
+```
+
+It needs internet access to download HC3 and FiQA.
+
 ## Working with Claude Code
 
 To run Claude Code with your research loop:

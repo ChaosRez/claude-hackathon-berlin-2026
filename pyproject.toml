@@ -1,0 +1,14 @@
+[project]
+name = "claude-hackathon-berlin-2026"
+version = "0.1.0"
+description = "Do LLMs argue like humans? Sentence graphs of human and LLM answers."
+requires-python = ">=3.14"
+dependencies = [
+    "datasets>=5.1.0",
+    "ipykernel>=7.4.0",
+    "jinja2>=3.1",
+    "matplotlib>=3.11.2",
+    "networkx>=3.5",
+    "pandas>=2.3",
+    "scikit-learn>=1.9.1",
+]
