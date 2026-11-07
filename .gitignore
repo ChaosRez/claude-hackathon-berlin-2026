@@ -54,3 +54,6 @@ htmlcov/
 *.swo
 *~
 
+
+# HC3 data (rebuild with scripts/get_data.py)
+data/*.jsonl

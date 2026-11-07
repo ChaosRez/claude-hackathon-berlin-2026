@@ -1,0 +1,207 @@
+# Entity definitions for reasoning graphs (Task 2).
+#
+# Status: DRAFT proposal, not agreed by the team.
+# GUIDE.md stays the source of truth; copy this into GUIDE.md once the team agrees.
+#
+# Examples here are made up (not copied from HC3), so this file has no share-alike obligation.
+
+version: 0.1
+status: draft
+
+# ---------------------------------------------------------------------------
+# Coverage rule: nothing in the text is left out.
+# ---------------------------------------------------------------------------
+coverage:
+  rule: >
+    Every word of the answer belongs to exactly one entity.
+    Entities do not overlap and do not leave gaps.
+    Only whitespace and punctuation between entities may stay unassigned.
+  check: >
+    Joining the entity texts in order must give back the original answer,
+    ignoring whitespace and punctuation.
+    This can be tested by a script (src/validate.py), not by eye.
+  graph: >
+    Every entity is labeled, but `filler` entities are not graph nodes.
+    They are counted separately, so we can still compare how much filler humans and LLMs write.
+  gap_signal: >
+    `other` is the safety net.
+    If more than about 5% of entities in the hand-labelled texts are `other`,
+    the list is NOT enough: read those entities and propose a new type to the team.
+
+# ---------------------------------------------------------------------------
+# Segmentation: how big one entity is.
+# ---------------------------------------------------------------------------
+segmentation:
+  default: one sentence
+  split_when: >
+    A sentence has parts with different roles.
+    Split points are usually words like: but, however, although, because, since, so, therefore, if, unless, except.
+  do_not_split: >
+    A long sentence with one role.
+    A list of items that together play one role (e.g. "low fees, broad diversification and simplicity").
+  list_items: >
+    In a bulleted or "Label: text" list, each item is its own entity.
+  keep_text: Copy the text exactly as written. Do not rewrite or fix it.
+
+# ---------------------------------------------------------------------------
+# Entity types.
+# Each type has: a definition, a test question, what it includes and excludes,
+# and an example.
+# ---------------------------------------------------------------------------
+entities:
+
+  claim:
+    definition: >
+      A statement the writer wants the reader to accept as true,
+      and which other parts of the text argue for or against.
+    test_question: "Is the writer taking a position here?"
+    includes:
+      - The overall answer to the question (the main claim).
+      - Smaller positions that are themselves argued for (sub-claims).
+      - A repeat of the main claim at the end ("Overall, ...", "In short, ...").
+    excludes:
+      - Telling the reader what to do (use recommendation).
+      - Neutral facts that nobody argues about (use evidence or background).
+    example: "Index funds are a good choice for most savers."
+
+  reason:
+    definition: >
+      A general statement that explains why a claim or recommendation is true or sensible.
+    test_question: "Does this answer 'why?' for another entity, in general terms?"
+    includes:
+      - Causes, mechanisms and general principles used as support.
+    excludes:
+      - Specific numbers, named cases or personal stories (use evidence).
+    example: "Their fees are low, so more of your return stays with you."
+
+  evidence:
+    definition: >
+      A specific fact, number, case, story or source that backs another entity.
+    test_question: "Is this a concrete detail that could be checked or told as a story?"
+    attributes:
+      kind:
+        fact: a number, statistic or specific factual statement
+        example: a concrete case, real or hypothetical ("Say you invest $1,000...")
+        personal: the writer's own experience ("I did this and...")
+        source: a reference to someone else ("Wikipedia says...", "As Nate said...", a link)
+    excludes:
+      - General explanations (use reason).
+    example: "A 0.1% fee on $10,000 is only $10 a year."
+
+  counterpoint:
+    definition: >
+      A point against a claim, reason or recommendation in the text.
+      The writer may hold it, or may raise it to answer it.
+    test_question: "Does this speak against something else in the text?"
+    includes:
+      - Objections ("But you can't beat the market.").
+      - Concessions ("You might think X, and that's probably true.").
+      - Downsides or risks of the option the writer favours.
+    excludes:
+      - General warnings not tied to a specific entity (use caveat).
+      - Limits on when something holds (use condition).
+    example: "However, you can't beat the market with an index fund."
+
+  rebuttal:
+    definition: >
+      The writer's reply to a counterpoint, which weakens or answers it.
+    test_question: "Does this push back against a counterpoint?"
+    excludes:
+      - New support that ignores the counterpoint (use reason).
+    example: "Most active funds don't beat the market either."
+
+  condition:
+    definition: >
+      A statement of when, for whom or under which circumstances another entity holds.
+    test_question: "Does this limit the scope of another entity?"
+    includes:
+      - "If ...", "unless ...", "for people who ...", "it depends on ...".
+    excludes:
+      - Arguments against (use counterpoint).
+    example: "If you invest for more than 10 years, ..."
+
+  recommendation:
+    definition: >
+      Advice that tells the reader what to do or not do.
+    test_question: "Does this ask the reader to act?"
+    includes:
+      - Imperatives ("Check your rate."), "you should", "I would recommend".
+    excludes:
+      - General warnings without a specific action (use caveat).
+    example: "So put most of your savings in a broad index fund."
+
+  caveat:
+    definition: >
+      A general warning or disclaimer that is not tied to a specific entity
+      and does not argue for or against the answer.
+    test_question: "Is this a generic 'be careful' that would fit almost any answer on the topic?"
+    includes:
+      - "It's important to note that investing involves risk."
+      - "Consult a financial advisor before deciding."
+    excludes:
+      - A risk of the specific option discussed (use counterpoint).
+    note: Candidate type. Keep it only if hand labelling shows it is needed.
+    example: "It is important to remember that all investments carry some risk."
+
+  background:
+    definition: >
+      Neutral context the reader needs to follow the answer,
+      such as a definition or how something works,
+      that does not itself support or attack anything.
+    test_question: "Could I delete this without weakening or strengthening any position?"
+    excludes:
+      - Context that is used as support (use reason or evidence).
+    example: "An index fund is a fund that buys all the stocks in a market index."
+
+  filler:
+    definition: >
+      Text with no content about the question.
+    test_question: "Does this say nothing about the topic?"
+    includes:
+      - Greetings, thanks, sign-offs ("Hope this helps!").
+      - Comments on the question ("Good question.").
+      - Restating the question without answering it ("There are several factors to consider.").
+      - AI self-references ("As an AI language model, ...").
+    graph: not a node; counted only
+    example: "Great question!"
+
+  other:
+    definition: >
+      Content that fits none of the types above.
+      Use it only as a last resort, and write a short note on why.
+    test_question: "Did every other test question fail?"
+    attributes:
+      note: free text, required
+    graph: node, but flagged for review
+    example: null
+
+# ---------------------------------------------------------------------------
+# Flags that can be added to any entity (not types).
+# ---------------------------------------------------------------------------
+flags:
+  main:
+    meaning: The main claim, the writer's overall answer. Exactly one per text.
+    rule: >
+      Pick the entity that answers the question most directly.
+      If none does, pick the "overall / in summary" entity.
+      If there is none, set implicit_main on the text instead of inventing one.
+  hedged:
+    meaning: The entity softens its own strength.
+    markers: ["may", "might", "can", "generally", "usually", "in most cases", "it depends", "probably"]
+
+# ---------------------------------------------------------------------------
+# Decision order when unsure.
+# Ask the test questions in this order; take the first "yes".
+# ---------------------------------------------------------------------------
+decision_order:
+  - filler
+  - recommendation
+  - condition
+  - rebuttal
+  - counterpoint
+  - caveat
+  - evidence
+  - reason
+  - claim
+  - background
+  - other
