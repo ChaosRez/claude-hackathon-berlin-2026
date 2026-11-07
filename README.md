@@ -320,6 +320,33 @@ uv run --with nbconvert jupyter nbconvert --to notebook --execute --inplace data
 
 It needs internet access to download HC3 and FiQA.
 
+## Run the Streamlit app
+
+The app turns an answer into a reasoning graph and draws it.
+
+Before you start, make sure you have:
+
+1. **Dependencies:** run `uv sync` (see Setup).
+2. **Claude API access:** an Anthropic API key with credit, from the [Claude Console](https://console.anthropic.com/).
+   API usage is billed separately from a Claude Pro or Max subscription.
+   Put the key in `.env` as `ANTHROPIC_API_KEY=...`.
+3. **Data:** run `uv run scripts/get_data.py`.
+   You only need this for the `Dataset` input, not for `Own text`.
+
+Then start the app from the repo root:
+
+```bash
+uv run streamlit run app.py
+```
+
+Streamlit prints a local URL. Open it in your browser.
+
+Each new extraction calls Claude and uses API credit.
+Saved graphs in `results/app/graphs/` are reused, unless you tick `Re-extract`.
+
+If no API key is set, the app falls back to your Claude Code login (`EXTRACT_BACKEND=cli`).
+`.env.example` lists the other optional settings.
+
 ## Working with Claude Code
 
 To run Claude Code with your research loop:
