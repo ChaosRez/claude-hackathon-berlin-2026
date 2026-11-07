@@ -1,0 +1,53 @@
+# Relation definitions for reasoning graphs (Task 3).
+#
+# Status: DRAFT, not agreed by the team.
+# Copied from GUIDE.md section 3 (draft of 2026-11-07), so the extractor can read it.
+# GUIDE.md stays the source of truth; if the two differ, GUIDE.md wins.
+#
+# Two changes from GUIDE.md, both open for the team to decide:
+#   1. Entity names follow entity_definition.yaml: `refutation` is called `counterpoint`.
+#   2. `edge_optional` lists entity types that may have no outgoing edge (see below).
+
+version: 0.1
+status: draft
+
+direction: >
+  Every edge goes from an entity to the entity it is about.
+  Read it as a sentence: "A supports B".
+
+relations:
+  supports:
+    meaning: A gives a reason for B.
+    typical: reason -> claim
+  illustrates:
+    meaning: A is a fact or case backing B.
+    typical: evidence -> reason or claim
+  attacks:
+    meaning: A argues against B.
+    typical: counterpoint -> claim
+  answers:
+    meaning: A replies to the objection B.
+    typical: rebuttal -> counterpoint
+  qualifies:
+    meaning: A limits when B holds.
+    typical: condition -> claim or recommendation
+  concludes:
+    meaning: A is drawn from B.
+    typical: recommendation -> reason
+
+rules:
+  - Every graph node except the main claim has exactly one outgoing edge, to the one entity it is most about.
+  - The main claim has no outgoing edge.
+  - Filler entities are not graph nodes, so no edge starts or ends at them.
+  - An edge can point to an earlier or a later entity.
+  - The "typical" column is a guide, not a rule. If the text clearly does something else, label what the text does.
+
+# Types that may have zero outgoing edges (at most one).
+# Reason: entity_definition.yaml says `background` "does not itself support or attack anything"
+# and `caveat` is "not tied to a specific entity", so no relation above fits them.
+# `other` is a last-resort type, so forcing an edge would hide the problem.
+# OPEN QUESTION for the team: keep this, or add a relation such as `context_for`.
+edge_optional:
+  - background
+  - caveat
+  - other
