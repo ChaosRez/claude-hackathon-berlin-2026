@@ -57,3 +57,6 @@ htmlcov/
 
 # HC3 data (rebuild with scripts/get_data.py)
 data/*.jsonl
+
+# Graphs extracted by the Streamlit app (rebuild by clicking "Extract")
+results/app/
