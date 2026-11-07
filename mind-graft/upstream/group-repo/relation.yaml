@@ -1,0 +1,237 @@
+# Relation definitions for reasoning graphs (Task 3).
+#
+# Status: DRAFT proposal, not agreed by the team.
+# GUIDE.md stays the source of truth; copy this into GUIDE.md once the team agrees.
+# Entity types are defined in entity_definition.yaml.
+#
+# Examples here are made up (not copied from HC3), so this file has no share-alike obligation.
+
+version: 0.1
+status: draft
+
+# ---------------------------------------------------------------------------
+# Design principles: why the list is short.
+# ---------------------------------------------------------------------------
+principles:
+  - >
+    A relation must add information that the entity types do not already give.
+    Example: `evidence supports claim` already says "it is evidence",
+    so a separate `illustrates` relation would only repeat the node type.
+  - >
+    Each relation must help answer the project question:
+    does the writer argue for the answer, consider the other side,
+    answer it, limit it, explain it, or just pad it?
+  - Fewer types means more agreement between labellers.
+
+# ---------------------------------------------------------------------------
+# Graph rules.
+# ---------------------------------------------------------------------------
+rules:
+  direction: >
+    Every edge goes FROM an entity TO the entity it is about.
+    Read it as a sentence: "A supports B".
+  directed: >
+    Every edge is directed, including `conflicts`.
+    "A supports B" is a different edge from "B supports A".
+  multiple_edges: >
+    An entity may have several outgoing and several incoming edges.
+    Real texts are not trees: one piece of evidence can back two reasons,
+    and a rebuttal can answer two objections.
+    Forcing one edge would throw true links away.
+  at_least_one: >
+    Every entity except the main claim and filler has AT LEAST one outgoing edge,
+    so no entity is left unconnected.
+    The main claim may have outgoing edges too (e.g. `conflicts`), but does not need any.
+  explicit_only: >
+    Add an edge only when the text clearly makes the link
+    (a pronoun, a repeated term, a connective like "so", "but", "because", or direct adjacency in meaning).
+    Do not add an edge just because two entities are on the same topic.
+    This keeps edge counts about the text, not about the labeller.
+  primary: >
+    Mark exactly one outgoing edge per entity as `primary: true`:
+    the link to the entity it is MOST about.
+    The primary edges form a tree rooted at the main claim.
+    Use that tree for measures that need one (depth, tree edit distance),
+    and the full graph for everything else.
+  one_edge_per_pair: >
+    At most one edge from A to B. If two relations seem to fit, use the decision order below.
+  no_self_loops: An entity cannot point to itself.
+  cycles: >
+    Allowed, but they should be rare.
+    Report how many graphs have cycles (Task 14); do not remove them.
+  filler: Filler entities have no edges.
+  order: An edge may point to an earlier or a later entity.
+  typical_pairs: >
+    The "typical" pairs below are a guide, not a rule.
+    If the text clearly does something else, label what the text does.
+
+# ---------------------------------------------------------------------------
+# Relation types.
+# ---------------------------------------------------------------------------
+relations:
+
+  supports:
+    definition: >
+      A gives a reason or evidence to believe B, or to follow B.
+    test_question: "If A is true, should I believe or follow B more?"
+    typical:
+      - reason -> claim
+      - reason -> recommendation
+      - evidence -> reason
+      - evidence -> claim
+      - claim -> claim (a sub-claim supporting the main claim)
+    not_this: >
+      A only makes B easier to understand, not more believable (use explains).
+    why_it_matters: Depth of support chains, e.g. evidence -> reason -> claim.
+    example:
+      A: "Their fees are low."
+      B: "Index funds are a good choice."
+
+  attacks:
+    definition: >
+      A gives a reason to believe or follow B less.
+    test_question: "If A is true, should I believe or follow B less?"
+    typical:
+      - counterpoint -> claim
+      - counterpoint -> reason
+      - counterpoint -> recommendation
+    not_this: >
+      A only limits when B holds, without arguing against it (use qualifies).
+    why_it_matters: Does the writer consider the other side at all?
+    example:
+      A: "But you can't beat the market with them."
+      B: "Index funds are a good choice."
+
+  refutes:
+    definition: >
+      A weakens or answers an attack B, so the attacked entity stands again.
+      This is an attack on an attack.
+    test_question: "Does A push back against an entity that itself attacks something?"
+    typical:
+      - rebuttal -> counterpoint
+    not_this: >
+      A attacks a claim or reason that is not itself an attack (use attacks).
+    why_it_matters: Is the other side answered, or left open?
+    example:
+      A: "Most active funds don't beat the market either."
+      B: "But you can't beat the market with them."
+
+  qualifies:
+    definition: >
+      A limits when, for whom, or how strongly B holds, without arguing for or against B.
+    test_question: "Does A narrow the scope or strength of B?"
+    typical:
+      - condition -> claim
+      - condition -> recommendation
+      - caveat -> claim (a general warning attached to the answer)
+    not_this: >
+      A says B is wrong in some cases and argues why (use attacks).
+    why_it_matters: Does the writer say "it depends", and how often?
+    example:
+      A: "If you invest for more than 10 years, ..."
+      B: "Index funds are a good choice."
+
+  explains:
+    definition: >
+      A gives context, a definition or a mechanism that helps the reader understand B,
+      without making B more or less believable.
+    test_question: "Does A help me understand B, but not believe it more?"
+    typical:
+      - background -> claim
+      - background -> any entity that uses a term A defines
+    not_this: >
+      A makes B more believable (use supports).
+    why_it_matters: How much of the answer is explaining rather than arguing?
+    example:
+      A: "An index fund buys all the stocks in a market index."
+      B: "Index funds are a good choice."
+
+  elaborates:
+    definition: >
+      A adds detail to B: more specifics, a further step, or a list item under B,
+      without giving a new reason for it.
+      ("Expands information".)
+    test_question: "Does A say more about the same point as B, rather than why B is true?"
+    typical:
+      - claim -> claim
+      - recommendation -> recommendation ("Also, rebalance once a year.")
+      - list item -> the sentence that opens the list
+    not_this: >
+      A gives a reason for B (use supports).
+      A restates B in shorter form (use summarizes).
+    why_it_matters: Is the answer wide (many details on one point) or deep (chains of reasons)?
+    example:
+      A: "This includes both US and international index funds."
+      B: "Index funds are a good choice."
+
+  summarizes:
+    definition: >
+      A repeats B, or several entities, in shorter or more general form.
+      A adds no new information.
+      ("Compresses information".)
+    test_question: "Could I delete A without losing any content?"
+    typical:
+      - claim -> main claim ("Overall, index funds are a good choice.")
+      - recommendation -> recommendation
+    rule: >
+      If the answer states its position early and repeats it at the end,
+      the early one is the main claim and the repeat summarizes it.
+    why_it_matters: >
+      How much of the answer is repetition?
+      LLM answers may end with an "Overall" sentence more often.
+    example:
+      A: "In short, index funds suit most people."
+      B: "Index funds are a good choice for most savers."
+
+  concludes:
+    definition: >
+      A is a consequence drawn from B: "B, so A".
+      A is new: it goes a step beyond B.
+    test_question: "Does A follow from B, as a new step (often after 'so', 'therefore', 'that is why')?"
+    typical:
+      - recommendation -> claim ("Index funds are good. So buy one.")
+      - claim -> reason
+    not_this: >
+      A only repeats B (use summarizes).
+      A is the reason for B (use supports, pointing the other way).
+    why_it_matters: Does the reasoning move from belief to action or to a new conclusion?
+    example:
+      A: "So put most of your savings in one."
+      B: "Index funds are a good choice."
+
+  conflicts:
+    definition: >
+      A and B contradict each other, and the text does NOT resolve the contradiction.
+    direction: >
+      The contradiction itself has no direction, so use a fixed rule:
+      the edge goes FROM the later entity TO the earlier one.
+    test_question: "Can A and B not both be true, and does the writer leave it like that?"
+    primary: Never primary. It is always an extra edge, added to the entity's other edges.
+    not_this: >
+      The writer raises an objection on purpose (use attacks).
+      The writer answers it (use refutes).
+    why_it_matters: Are answers internally inconsistent? Do they say "yes" and "no" at once?
+    example:
+      A: "Index funds are the safest choice."
+      B: "Index funds can lose a lot of value quickly."
+
+# ---------------------------------------------------------------------------
+# Decision order when unsure.
+# Ask the test questions in this order; take the first "yes".
+# ---------------------------------------------------------------------------
+decision_order:
+  - refutes
+  - attacks
+  - qualifies
+  - summarizes
+  - concludes
+  - supports
+  - explains
+  - elaborates
+
+# ---------------------------------------------------------------------------
+# Merged or dropped relations, and why.
+# ---------------------------------------------------------------------------
+not_used:
+  illustrates: Merged into supports. The `evidence` node type already says it is an example.
+  answers: Renamed to refutes.

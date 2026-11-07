@@ -1,0 +1,644 @@
+<meta charset="utf-8">
+<title>Language Analyser</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@200;300;500&display=swap">
+<style>
+/* Layout: 3D stage left with a permanent legend top-left; controls and insights in the right panel. Light, warm, single theme by request: off-white ground, black thin type, orange for human, purple for LLM. */
+:root{
+  --bg:#f6f3ee; --panel:#fbf9f5; --line:#e4ddd2; --line-2:#cfc6b8;
+  --ink:#111111;
+  --human:#f29a2e; --human-dk:#b8650c; --llm:#a43fb3; --llm-dk:#6b2377; --q:#111111;
+  --sans:"Helvetica Neue", Helvetica, "Inter Tight", Arial, sans-serif;
+  color-scheme:light;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--ink);font:300 14px/1.5 var(--sans);margin:0}
+b,strong{font-weight:500}
+.app{display:grid;grid-template-columns:minmax(0,1fr) 430px;height:100%}
+.stage{position:relative;min-width:0;overflow:hidden}
+#gl{position:absolute;inset:0;display:block;width:100%;height:100%;cursor:grab;touch-action:none}
+.layers{position:absolute;top:14px;right:16px;display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:60%}
+.chip{font:300 12.5px/1 var(--sans);color:var(--ink);background:#fffdf9e6;border:1px solid var(--line-2);border-radius:999px;padding:7px 12px;cursor:pointer}
+.chip[aria-pressed="true"]{border-color:var(--ink);font-weight:500}
+button:focus-visible,select:focus-visible,input:focus-visible,.chip:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+#legend{position:absolute;left:max(14px, env(safe-area-inset-left, 0px));top:14px;width:236px;background:#fffdf9f2;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:12.5px;max-height:calc(100% - 28px);overflow-y:auto}
+#legend h4{font:500 11px/1 var(--sans);letter-spacing:.1em;text-transform:uppercase;margin:0}
+#legend .grp{display:flex;flex-direction:column;gap:4px}
+#legend .it{display:flex;align-items:center;gap:8px;line-height:1.2}
+#legend .types{display:grid;grid-template-columns:1fr 1fr;gap:2px 6px}
+#legend .types button{all:unset;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:6px;padding:1px 3px 1px 0}
+#legend .types button[aria-pressed="true"]{background:#11111112;font-weight:500}
+#legend .types button:focus-visible{outline:2px solid var(--ink)}
+#legend img{width:24px;height:24px;flex:none}
+.sw{width:14px;height:14px;border-radius:50%;flex:none}
+#legend svg{flex:none}
+#card{position:absolute;right:16px;bottom:16px;width:min(380px,calc(100% - 32px));background:#fffdf9f5;border:1px solid var(--line-2);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+#card .ty{display:flex;align-items:center;gap:8px;font:300 22px/1.1 var(--sans)}
+#card .meta{font-size:12.5px}
+#card p{margin:0;font-size:14px;line-height:1.5}
+.hint{position:absolute;left:266px;bottom:14px;font-size:11.5px;line-height:1.45;max-width:min(380px,40%);pointer-events:none}
+aside{background:var(--panel);border-left:1px solid var(--line);overflow-y:auto;padding-block:16px 28px;padding-left:max(18px, env(safe-area-inset-left, 0px));padding-right:max(18px, env(safe-area-inset-right, 0px));display:flex;flex-direction:column;gap:20px;min-width:0}
+h1{font:200 30px/1.05 var(--sans);margin:0;letter-spacing:-.01em}
+section{display:flex;flex-direction:column;gap:10px;min-width:0}
+h2{font:500 11px/1 var(--sans);letter-spacing:.12em;text-transform:uppercase;margin:0}
+h3{font:500 13px var(--sans);margin:4px 0 0;display:flex;align-items:center;gap:6px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:8px;overflow:hidden}
+.seg button{font:300 12.5px var(--sans);background:transparent;color:var(--ink);border:0;padding:7px 10px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff;font-weight:500}
+label.l{font-size:12.5px;min-width:96px}
+input[type=range]{flex:1;accent-color:var(--ink);min-width:0}
+input[type=number],input[type=text],select{font:300 13px var(--sans);background:#fff;color:var(--ink);border:1px solid var(--line-2);border-radius:8px;padding:6px 8px;min-width:0}
+input[type=number]{width:72px}
+input[type=file]{font:300 13px var(--sans);max-width:100%}
+.btn{font:300 13px var(--sans);background:#fff;color:var(--ink);border:1px solid var(--ink);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn.primary{background:var(--ink);color:#fff;font-weight:500}
+.ds{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.ds .name{font-weight:500}
+.ds .sub{grid-column:2 / 4;font-size:12px}
+.badge{font-size:11px;border:1px solid var(--line-2);border-radius:999px;padding:2px 8px;white-space:nowrap}
+.badge.warn{border-color:var(--human);background:#f29a2e1f}
+.import{border:1px solid var(--ink);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.out{font-size:12.5px;margin:0;min-height:1em}
+.err{font-weight:500;text-decoration:underline;text-decoration-color:#d23}
+.tbl{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{padding:5px 6px 5px 0;border-bottom:1px solid var(--line);text-align:right;font-size:12.5px;white-space:nowrap}
+th:first-child,td:first-child{text-align:left;white-space:normal}
+thead th{font-weight:500}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:0;margin-right:4px}
+.dh{background:var(--human)} .dl{background:var(--llm)}
+ul.ins{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.bars{display:flex;flex-direction:column;gap:5px}
+.bar{display:grid;grid-template-columns:110px minmax(0,1fr) 84px;gap:8px;align-items:center;font-size:12px}
+.bar .tr{position:relative;height:14px}
+.bar .tr i{position:absolute;left:0;height:6px;border-radius:3px}
+.bar .tr i.hb{top:0;background:var(--human)} .bar .tr i.lb{top:8px;background:var(--llm)}
+.bar span:first-child{display:flex;align-items:center;gap:5px}
+.bar img{width:18px;height:18px}
+.bar span:last-child{text-align:right}
+.q{font:300 17px/1.4 var(--sans);margin:0;text-wrap:balance}
+.typo{display:flex;gap:8px;flex-wrap:wrap}
+.typo span{font-size:12.5px;border-radius:999px;padding:4px 10px;border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px}
+.ent{display:grid;grid-template-columns:92px minmax(0,1fr);gap:8px;padding:5px 6px;border-radius:8px;cursor:pointer;border:1px solid transparent}
+.ent:hover,.ent.on{border-color:var(--line-2);background:#fff}
+.ent .tag{font-size:11.5px;line-height:1.35}
+.ent .tag b{display:flex;align-items:center;gap:5px}
+.ent .tag img{width:18px;height:18px}
+.ent p{margin:0;font-size:13px;line-height:1.45;min-width:0;overflow-wrap:anywhere}
+details summary{cursor:pointer;font-size:12.5px}
+.note{font-size:12.5px;margin:0}
+@media (max-width:860px){.app{grid-template-columns:1fr;grid-template-rows:72vh auto;height:auto}aside{border-left:0;border-top:1px solid var(--line)}#legend{width:196px;font-size:11.5px;padding:8px 10px}#legend .types{grid-template-columns:1fr}.hint{display:none}.layers{max-width:45%}}
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="gl" aria-label="3D cones of reasoning structure, one per dataset"></canvas>
+    <div id="legend" aria-label="Legend">
+      <div class="grp"><h4>Answer</h4>
+        <div class="it"><span class="sw" style="background:var(--human)"></span>Human</div>
+        <div class="it"><span class="sw" style="background:var(--llm)"></span>LLM</div>
+        <div class="it"><span class="sw" style="background:var(--q);width:9px;height:9px;margin:0 2.5px"></span>Question (start of each answer)</div>
+      </div>
+      <div class="grp"><h4>Entity type (node shape)</h4><div class="types" id="legTypes"></div></div>
+      <div class="grp"><h4>Relationship (line)</h4><div id="legRels"></div></div>
+    </div>
+    <div class="layers" role="group" aria-label="Layers">
+      <button class="chip" id="t-sail" aria-pressed="true">Sails</button>
+      <button class="chip" id="t-link" aria-pressed="true">Relationships</button>
+      <button class="chip" id="t-node" aria-pressed="true">Entities</button>
+      <button class="chip" id="t-spin" aria-pressed="false">Auto-rotate</button>
+    </div>
+    <div class="hint">z: length in words · y: depth (deep ↑ shallow) · x: opposition (narrow to wide). Drag to orbit, scroll to zoom, right-drag to pan. Click a node to read it.</div>
+    <div id="card" hidden></div>
+  </div>
+
+  <aside>
+    <h1>Language Analyser</h1>
+    <section>
+      <h2>Datasets</h2>
+      <div id="dslist"></div>
+      <p class="out" id="dsmsg"></p>
+      <div class="import">
+        <h3>Import a dataset (CSV)</h3>
+        <input type="file" id="csvfile" accept=".csv,text/csv" aria-label="Choose a CSV file">
+        <div class="row"><label class="l" for="csvname">Name</label><input type="text" id="csvname" placeholder="HC3 Medicine" style="flex:1"></div>
+        <div class="row"><label class="l" for="colq">Question column</label><select id="colq" style="flex:1"></select></div>
+        <div class="row"><label class="l" for="colh">Human column</label><select id="colh" style="flex:1"></select></div>
+        <div class="row"><label class="l" for="coll">LLM column</label><select id="coll" style="flex:1"></select></div>
+        <div class="row"><label class="l" for="csvdiff">Max word gap</label><input type="number" id="csvdiff" value="10" min="1"><label class="l" for="csvmax" style="min-width:0">Max rows</label><input type="number" id="csvmax" value="100" min="1"></div>
+        <div class="row"><button class="btn primary" id="csvadd">Add dataset</button></div>
+        <p class="out" id="csvmsg"></p>
+        <p class="note">One row per question, with a question column, a human answer column and an LLM answer column. Each import becomes a new cone. Entities are labelled at once by rules; use Label with Claude for the full codebook.</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>View</h2>
+      <div class="row"><label class="l">Show</label><div class="seg" id="mode"><button data-v="all" aria-pressed="true">All rows</button><button data-v="one" aria-pressed="false">One row</button></div></div>
+      <div class="row"><label class="l">Answers</label><div class="seg" id="side"><button data-v="both" aria-pressed="true">Both</button><button data-v="H" aria-pressed="false">Human</button><button data-v="L" aria-pressed="false">LLM</button></div></div>
+      <div class="row"><label class="l" for="sep">Slide apart</label><input type="range" id="sep" min="0" max="100" value="0"><output id="sepv" class="out">0%</output></div>
+      <div class="row"><label class="l" for="nrows">Rows shown</label><input type="range" id="nrows" min="1" max="100" value="100"><output id="nrowsv" class="out">100</output></div>
+      <div class="row"><label class="l" for="sort">Order spokes</label><select id="sort" style="flex:1"><option value="row">Dataset order</option><option value="gap">Depth gap, human deeper first</option><option value="lret">Most LLM reinforcement first</option><option value="hopp">Most human disagreement first</option></select></div>
+      <div class="row"><label class="l">Camera</label><div class="seg" id="cam"><button data-v="3d">3D</button><button data-v="elev">Elevation (y)</button><button data-v="top">Top (x)</button><button data-v="end">End-on</button></div></div>
+    </section>
+
+    <section>
+      <h2>Row</h2>
+      <div class="row"><select id="focusds" aria-label="Dataset for row" style="flex:1"></select></div>
+      <div class="row"><button class="btn" id="prev">Prev</button><label class="l" for="rowno" style="min-width:0">Row</label><input type="number" id="rowno" min="1" value="1"><span class="out" id="rowof"></span><button class="btn" id="next">Next</button></div>
+      <p class="q" id="question"></p>
+      <div class="typo" id="typo"></div>
+      <div class="tbl"><table id="rowcounts"></table></div>
+      <details><summary>Read both answers as entities</summary><div id="ents" style="display:flex;flex-direction:column;gap:4px;margin-top:8px"></div></details>
+    </section>
+
+    <section><h2>Insights</h2><ul class="ins" id="insights"></ul></section>
+    <section><h2>Compare datasets</h2><div class="tbl"><table id="cmp"></table></div><p class="note">Averages per answer over the rows shown.</p></section>
+    <section>
+      <h2>Graph typology</h2>
+      <div class="tbl"><table id="typotbl"></table></div>
+      <details><summary>How shapes are assigned</summary><p class="note" style="margin-top:6px">Zigzag: the answer switches between disagreeing and supporting at least twice. Spiral: it reinforces earlier points two or more times and still reaches depth 4. Circle: it ends by coming back to the question or its opening claim and stays within depth 3. Hub and spoke: one point has three or more children and nothing goes deeper than 3. Tree: two or more points branch. Line: most entities build on the one just before. Anything else is a wandering path.</p></details>
+    </section>
+    <section>
+      <h2>Entity type mix</h2>
+      <div class="row"><select id="mixds" aria-label="Dataset for entity type mix" style="flex:1"></select></div>
+      <div class="bars" id="mix"></div>
+      <div class="row"><button class="btn" id="export">Download type counts (CSV)</button><span class="out" id="expmsg"></span></div>
+    </section>
+    <section>
+      <h2>How entities are cut</h2>
+      <p class="note">Each answer is split into sentences, then split again at a semicolon or at a comma followed by but, however, although, though, whereas or yet. A list number such as "2." stays with the sentence after it. The labeller can merge a piece into the one before it when it does not carry its own unit of meaning. Each resulting entity gets one type, an optional parent it builds on, and optional earlier entities it repeats.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const BUILTIN = /*DATA*/;
+
+/* ================= codebook ================= */
+const TYPES = {C:"Claim",R:"Reason",E:"Elaboration",X:"Example",D:"Definition",O:"Opposing view",H:"Hedge",B:"Rebuttal",S:"Restatement",K:"Conclusion",V:"Advice",T:"Aside"};
+const XBY = {O:-1,H:-0.5,B:0.5};
+const SIDEC = {H:0xf29a2e, L:0xa43fb3}, SIDEDK = {H:0xb8650c, L:0x6b2377}, SIDEN = {H:"Human", L:"LLM"}, DOT = {H:"dh", L:"dl"};
+const RELS = {supports:{name:"Supports (builds on)", dash:null, svg:""}, disagrees:{name:"Disagrees (opposes or rebuts)", dash:[.26,.14], svg:"7 4"},
+  qualifies:{name:"Qualifies (hedges)", dash:[.26,.11,.05,.11], svg:"7 3 2 3"}, reinforces:{name:"Reinforces (repeats earlier point)", dash:[.05,.11], svg:"2 4"}};
+const relOf = t => t === "O" || t === "B" ? "disagrees" : t === "H" ? "qualifies" : "supports";
+const TOKEN = /^([A-Z])(\d+)?((?:\^\d+)*)$/;
+
+function buildAnswer(segs, tokens){
+  if (!tokens || segs.length !== tokens.length || tokens[0] === "+") return null;
+  const ents = [], segTo = {}; let word = 0;
+  for (let i = 1; i <= segs.length; i++){
+    const seg = segs[i-1], tok = tokens[i-1], n = seg.split(/\s+/).filter(Boolean).length;
+    if (tok === "+"){ const e = ents[ents.length-1]; e.text += " " + seg; e.w1 = word + n; }
+    else { const m = TOKEN.exec(tok); if (!m || !TYPES[m[1]]) return null;
+      const parent = m[2] != null ? +m[2] : null, rets = m[3].split("^").filter(Boolean).map(Number);
+      if ((parent && parent >= i) || rets.some(r => r >= i)) return null;
+      ents.push({type:m[1], text:seg, w0:word, w1:word+n, _p:parent, _r:rets}); }
+    segTo[i] = ents.length - 1; word += n;
+  }
+  const ref = s => s === 0 ? -1 : segTo[s];
+  ents.forEach((e, k) => { e.parent = e._p != null ? ref(e._p) : null; e.returns = [...new Set(e._r.map(ref))].filter(r => r !== k).sort((a,b)=>a-b); delete e._p; delete e._r;
+    if (e.parent != null && e.parent >= k) e.parent = k ? k-1 : -1;
+    e.depth = e.parent != null ? 1 + (e.parent < 0 ? 0 : ents[e.parent].depth) : e.returns.length ? Math.min(...e.returns.map(r => r < 0 ? 0 : ents[r].depth)) : 1;
+    e.x = XBY[e.type] || 0; e.mid = (e.w0 + e.w1) / 2; });
+  return {ents, words: word};
+}
+
+/* ================= segmenting (same rules as scripts/segment_answers.py) ================= */
+function clean(t){ return String(t||"").replace(/\s+([.,!?;:)\]])/g,"$1").replace(/([(\[])\s+/g,"$1").replace(/\s+n't\b/g,"n't").replace(/\s+('s|'re|'ve|'m|'ll|'d)\b/g,"$1").replace(/\s+/g," ").trim(); }
+function segment(text){
+  const parts = clean(text).split(/(?<=[.!?])\s+(?=["'*(]?[A-Z0-9])/), out = [];
+  parts.forEach(p => { if (out.length && /^\(?\d{1,2}[.)]$/.test(out[out.length-1].trim())) out[out.length-1] += " " + p; else out.push(p); });
+  const segs = [];
+  out.filter(s => s.trim()).forEach(s => s.split(/(?<=[,;])\s+(?=(?:but|however|although|though|whereas|yet)\b)|(?<=;)\s+/i).forEach(x => { if (x && x.trim()) segs.push(x.trim()); }));
+  return segs.length ? segs : [clean(text) || "(empty)"];
+}
+
+/* ================= rule-based labeller ================= */
+const STOP = new Set("the a an and or but of to in on for with is are was were be been it this that these those as at by from you your i we they he she them their our not do does did can could would should will just so if then than there here what why how when which who".split(" "));
+const wordsOf = s => new Set(s.toLowerCase().match(/[a-z0-9']+/g)?.filter(w => w.length > 2 && !STOP.has(w)) || []);
+const jac = (a, b) => { if (!a.size || !b.size) return 0; let i = 0; a.forEach(w => b.has(w) && i++); return i / (a.size + b.size - i); };
+function heuristic(segs, q){
+  const qw = wordsOf(q), toks = [], W = segs.map(wordsOf); let claim = 1, prevSeg = 1, prevType = "C";
+  segs.forEach((s0, idx) => { const i = idx + 1, s = s0.toLowerCase().trim(); let t;
+    if (i === 1) t = jac(W[0], qw) > .2 ? "C0^0" : "C0";
+    else if (/^(sure|i hope|hope this|let me know|does that make sense|i'?m sorry|edit|source|tl;? ?dr|disclaimer|i'?m not (an |a )?expert)/.test(s)) t = "T0";
+    else if (/^(so,|so |overall|in summary|in short|to sum|ultimately|in general|in conclusion|basically|that'?s why)/.test(s)) t = `K${claim}^${claim}`;
+    else if (/^(however|but|although|though|on the other hand|that said|yet|while)/.test(s)) t = prevType === "O" ? `B${prevSeg}` : `H${prevSeg}`;
+    else if (/(some people|others (say|believe|argue|think)|critics|contrary to|opponents|it is (often )?(claimed|said)|many people (think|believe|say))/.test(s)) t = `O${claim}`;
+    else if (/^(for example|for instance|e\.g\.|imagine|think of|like when|say you|let'?s say|consider)/.test(s)) t = `X${prevSeg}`;
+    else if (/^(it'?s|it is) (important|a good idea|best|always|never|recommended)|^(you should|make sure|be sure|try to|always|never|if you'?re (unsure|concerned))/.test(s)) t = "V0";
+    else if (/^(because|this is because|since|the reason|one reason|another reason|first|second|third|finally|also|additionally|another|in addition)/.test(s)) t = `R${claim}`;
+    else if (/^(this|that|which|these|it) (means|is called|is known|helps|makes|allows|causes|can|will|is why)|^(in other words|as a result|this means)/.test(s)) t = `E${prevSeg}`;
+    else { let best = 0, bj = 0; for (let j = 0; j < idx; j++){ const v = jac(W[idx], W[j]); if (v > best){ best = v; bj = j+1; } }
+      t = best >= .5 ? `S^${bj}` : `E${prevSeg}`; }
+    toks.push(t); prevSeg = i; prevType = t[0]; });
+  return toks;
+}
+
+/* ================= typology ================= */
+const SHAPES = ["Line","Tree","Hub and spoke","Circle","Spiral","Zigzag","Wandering"];
+function typology(ents){
+  const n = ents.length; if (n <= 2) return "Line";
+  const kids = new Map(); ents.forEach(e => { if (e.parent != null) kids.set(e.parent, (kids.get(e.parent)||0)+1); });
+  const maxKids = Math.max(0, ...kids.values()), branch = [...kids.values()].filter(v => v >= 2).length;
+  const maxD = Math.max(...ents.map(e => e.depth)), rets = ents.filter(e => e.returns.length).length;
+  const sg = ents.map(e => Math.sign(e.x)).filter(Boolean); let sw = 0; for (let i = 1; i < sg.length; i++) if (sg[i] !== sg[i-1]) sw++;
+  const tail = ents.slice(-2), endsBack = tail.some(e => e.returns.some(r => r <= 0) || (e.type === "K" && e.returns.length));
+  const chain = ents.filter((e, k) => e.parent === k - 1).length / (n - 1);
+  if (sg.length >= 3 && sw >= 2) return "Zigzag";
+  if (rets >= 2 && maxD >= 4) return "Spiral";
+  if (rets >= 1 && endsBack && maxD <= 3) return "Circle";
+  if (maxKids >= 3 && maxD <= 3) return "Hub and spoke";
+  if (branch >= 2 || maxKids >= 3) return "Tree";
+  if (chain >= .6) return "Line";
+  return "Wandering";
+}
+function links(a){ const L = []; a.ents.forEach((e, k) => { if (e.parent != null) L.push({from:e.parent, to:k, rel:relOf(e.type)}); e.returns.forEach(r => L.push({from:k, to:r, rel:"reinforces"})); }); return L; }
+
+/* ================= datasets ================= */
+const DS = [];
+function prepRow(r){
+  ["h","l"].forEach(k => { const side = k.toUpperCase(), tk = k + "t", mk = k + "m";
+    let built = r[tk] ? buildAnswer(r[k], r[tk]) : null;
+    if (!built){ r[tk] = heuristic(r[k], r.q); r[mk] = "rule"; built = buildAnswer(r[k], r[tk]); }
+    if (!built){ r[tk] = r[k].map((_, i) => i ? `E${i}` : "C0"); r[mk] = "rule"; built = buildAnswer(r[k], r[tk]); }
+    built.links = links(built); r[side] = {...built, shape: typology(built.ents)}; });
+  return r;
+}
+function methodOf(d){ const m = new Set(d.rows.flatMap(r => [r.hm, r.lm])); return m.size === 1 ? [...m][0] : "mixed"; }
+const METHOD = {manual:"Claude, by hand", claude:"Claude in app", rule:"Rule-based", mixed:"Mixed labels"};
+BUILTIN.forEach(b => DS.push({id:b.id, name:b.name, builtin:true, visible:true,
+  rows: b.rows.map(r => prepRow({q:r.q, h:r.h, l:r.l, ht:r.ht, lt:r.lt, hm: r.ht ? "manual" : null, lm: r.lt ? "manual" : null}))}));
+
+/* ================= state ================= */
+const st = {mode:"all", side:"both", sep:0, nrows:100, sort:"row", focus:0, row:0, ent:null, cam:"3d", types:new Set(), layers:{sail:true, link:true, node:true}};
+let TW = .9; const WZ = .05, R0 = 1.4, DR = .85, K = 40, SPAN = Math.PI * 2 * 330/360, GAP = 8;
+const sideList = () => st.side === "both" ? ["H","L"] : [st.side];
+const maxDepth = a => Math.max(...a.ents.map(e => e.depth));
+const relCount = (a, r) => a.links.filter(l => l.rel === r).length;
+function order(d){ const idx = d.rows.map((_, i) => i);
+  const key = {row:i => i, gap:i => -(maxDepth(d.rows[i].H) - maxDepth(d.rows[i].L)), lret:i => -relCount(d.rows[i].L, "reinforces"), hopp:i => -relCount(d.rows[i].H, "disagrees")}[st.sort];
+  return idx.sort((a, b) => key(a) - key(b) || a - b).slice(0, Math.min(st.nrows, d.rows.length)); }
+
+/* ================= three.js ================= */
+const canvas = document.getElementById("gl");
+const renderer = new THREE.WebGLRenderer({canvas, antialias:true}); renderer.setPixelRatio(Math.min(2, devicePixelRatio)); renderer.setClearColor(0xf6f3ee, 1);
+const scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera(42, 1, .1, 800);
+const controls = new THREE.OrbitControls(camera, canvas); controls.enableDamping = true; controls.dampingFactor = .08; controls.autoRotateSpeed = .6;
+scene.add(new THREE.HemisphereLight(0xffffff, 0xe8dccb, .75)); const sun = new THREE.DirectionalLight(0xffffff, .65); sun.position.set(20, 30, 10); scene.add(sun);
+const world = new THREE.Group(); scene.add(world);
+// one solid 3D form per entity type
+const GEO = {
+  C: new THREE.BoxGeometry(.18,.18,.18), R: new THREE.ConeGeometry(.11,.24,18), E: new THREE.SphereGeometry(.105,16,12), X: new THREE.CylinderGeometry(.085,.085,.22,18),
+  D: new THREE.BoxGeometry(.24,.24,.05), O: new THREE.TetrahedronGeometry(.16), H: new THREE.SphereGeometry(.13,18,10,0,Math.PI*2,0,Math.PI/2), B: new THREE.OctahedronGeometry(.15),
+  S: new THREE.TorusGeometry(.095,.04,10,24), K: new THREE.DodecahedronGeometry(.13), V: new THREE.ConeGeometry(.13,.22,4), T: new THREE.CylinderGeometry(.12,.12,.045,22)};
+const qGeo = new THREE.SphereGeometry(.07, 12, 8);
+const marker = new THREE.Mesh(new THREE.SphereGeometry(.3, 16, 12), new THREE.MeshBasicMaterial({color:0x111111, wireframe:true})); marker.visible = false; scene.add(marker);
+
+// shape thumbnails for the legend and lists
+const THUMB = {};
+(function thumbs(){
+  const c = document.createElement("canvas"); c.width = c.height = 96;
+  const r = new THREE.WebGLRenderer({canvas:c, antialias:true, alpha:true, preserveDrawingBuffer:true}); r.setClearColor(0x000000, 0);
+  const s = new THREE.Scene(), cam = new THREE.PerspectiveCamera(30, 1, .1, 10); cam.position.set(0, 0, 1.1);
+  s.add(new THREE.HemisphereLight(0xffffff, 0xd9cdb8, .8)); const dl = new THREE.DirectionalLight(0xffffff, .7); dl.position.set(1, 2, 2); s.add(dl);
+  const mat = new THREE.MeshLambertMaterial({color:0x8a8178, side:THREE.DoubleSide});
+  Object.keys(GEO).forEach(t => { const m = new THREE.Mesh(GEO[t], mat); m.rotation.set(.5, .7, 0); s.add(m); r.render(s, cam); THUMB[t] = c.toDataURL(); s.remove(m); });
+  r.dispose();
+})();
+const thumb = t => `<img src="${THUMB[t]}" alt="">`;
+
+function sprite(text, size, weight){
+  const c = document.createElement("canvas"), x = c.getContext("2d"), font = `${weight||300} 48px "Helvetica Neue", Helvetica, "Inter Tight", Arial, sans-serif`; x.font = font;
+  const w = Math.ceil(x.measureText(text).width) + 24; c.width = w; c.height = 72; x.font = font; x.fillStyle = "#111111"; x.textBaseline = "middle"; x.fillText(text, 12, 38);
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c), transparent:true, depthWrite:false})); s.scale.set(size * w / 72, size, 1); return s;
+}
+const local = (theta, w, d, x) => { const r = R0 + d*DR, t = x*TW, c = Math.cos(theta), s = Math.sin(theta); return new THREE.Vector3(c*r - s*t, s*r + c*t, w*WZ); };
+const pathPts = a => [{w:0,d:0,x:0}].concat(a.ents.map(e => ({w:e.mid, d:e.depth, x:e.x})));
+function sample(a, t){ const p = pathPts(a), end = p[p.length-1]; p.push({w:a.words, d:end.d, x:end.x}); const w = t*a.words;
+  for (let i = 1; i < p.length; i++) if (w <= p[i].w || i === p.length-1){ const q = p[i-1], r = p[i], f = r.w > q.w ? Math.min(1, Math.max(0, (w-q.w)/(r.w-q.w))) : 1; return {w, d:q.d+(r.d-q.d)*f, x:q.x+(r.x-q.x)*f}; } }
+// a patterned line between two points, written as plain segments so dash, dot and dash-dot all work in WebGL
+function pattern(out, a, b, dash){
+  if (!dash){ out.push(a.x,a.y,a.z, b.x,b.y,b.z); return; }
+  const d = b.clone().sub(a), L = d.length(); if (!L) return; d.divideScalar(L); let s = 0, i = 0;
+  while (s < L){ const on = dash[i % dash.length], off = dash[(i+1) % dash.length], e = Math.min(L, s + on);
+    out.push(a.x+d.x*s, a.y+d.y*s, a.z+d.z*s, a.x+d.x*e, a.y+d.y*e, a.z+d.z*e); s = e + off; i += 2; }
+}
+
+const rodGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+function rods(arr, r, op){
+  const n = arr.length / 6, im = new THREE.InstancedMesh(rodGeo, new THREE.MeshBasicMaterial({color:0x111111, transparent:op < 1, opacity:op, depthWrite:op >= 1}), n);
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), dir = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), q = new THREE.Quaternion(), m = new THREE.Matrix4(), sc = new THREE.Vector3();
+  for (let i = 0; i < n; i++){ a.fromArray(arr, i*6); b.fromArray(arr, i*6+3); dir.subVectors(b, a); const L = dir.length() || 1e-6;
+    q.setFromUnitVectors(up, dir.divideScalar(L)); m.compose(a.clone().add(b).multiplyScalar(.5), q, sc.set(r, L, r)); im.setMatrixAt(i, m); }
+  return im;
+}
+let picks = [], sideGroups = [], z0 = [];
+function disposeAll(o){ o.traverse(c => { if (c.geometry && !Object.values(GEO).includes(c.geometry) && c.geometry !== qGeo && c.geometry !== rodGeo) c.geometry.dispose(); if (c.material){ (Array.isArray(c.material) ? c.material : [c.material]).forEach(m => { if (m.map) m.map.dispose(); m.dispose(); }); } }); }
+function build(){
+  disposeAll(world); world.clear(); picks = []; sideGroups = []; TW = st.mode === "one" ? 2 : .9;
+  const shown = st.mode === "one" ? [st.focus] : DS.map((d, i) => i).filter(i => DS[i].visible);
+  let z = 0; z0 = [];
+  shown.forEach(di => { z0[di] = z; z += Math.max(...DS[di].rows.map(r => Math.max(r.H.words, r.L.words))) * WZ + GAP; });
+  shown.forEach(di => {
+    const d = DS[di], cone = new THREE.Group(); cone.position.z = z0[di]; world.add(cone);
+    const rows = st.mode === "one" ? [st.row] : order(d), one = st.mode === "one";
+    const ang = {}; rows.forEach((ri, k) => ang[ri] = one ? Math.PI/2 : k / Math.max(1, rows.length) * SPAN);
+    const maxW = Math.max(...rows.map(ri => Math.max(d.rows[ri].H.words, d.rows[ri].L.words)));
+    const gm = new THREE.LineBasicMaterial({color:0x111111});
+    cone.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0), new THREE.Vector3(0,0,(maxW+15)*WZ)]), gm));
+    for (let w = 0; w <= maxW; w += 50){ const s = sprite(String(w), .5); s.position.set(0, -.6, w*WZ); cone.add(s); }
+    const zl = sprite("z · words", .5, 500); zl.position.set(0, -.6, (maxW+28)*WZ); cone.add(zl);
+    const title = sprite(d.name + (one ? ` · row ${st.row+1}` : ` · ${rows.length} rows`), .85, 500); title.position.set(0, R0 + 7*DR + 1.5, 0); cone.add(title);
+    const faint = new THREE.LineBasicMaterial({color:0xd8cfc2});
+    if (!one){ for (let dd = 0; dd <= 8; dd += 2){ const pts = []; for (let i = 0; i <= 96; i++){ const a = i/96*Math.PI*2; pts.push(new THREE.Vector3(Math.cos(a)*(R0+dd*DR), Math.sin(a)*(R0+dd*DR), 0)); }
+        cone.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), faint)); const s = sprite(dd ? "depth " + dd : "question", .42); s.position.set(R0+dd*DR+.2, .35, 0); cone.add(s); } }
+    else { for (let dd = 1; dd <= 8; dd++){ const y = R0 + dd*DR; cone.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.2,y,0), new THREE.Vector3(-1.2,y,maxW*WZ)]), faint)); const s = sprite("y · depth " + dd, .4); s.position.set(-2.2, y, 0); cone.add(s); } }
+    sideList().forEach(s => {
+      const g = new THREE.Group(); g.userData = {side:s}; cone.add(g); sideGroups.push(g);
+      if (!one && rows.length > 1 && st.layers.sail){
+        const N = rows.length, P = new Float32Array(N*(K+1)*3), idx = [];
+        rows.forEach((ri, k) => { const a = d.rows[ri][s]; for (let j = 0; j <= K; j++){ const p = sample(a, j/K), v = local(ang[ri], p.w, p.d, p.x); P.set([v.x, v.y, v.z], (k*(K+1)+j)*3); } });
+        for (let k = 0; k < N-1; k++) for (let j = 0; j < K; j++){ const a = k*(K+1)+j, b = a+1, c = a+K+1, e = c+1; idx.push(a,c,b, b,c,e); }
+        const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.BufferAttribute(P, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+        const m = new THREE.Mesh(geo, new THREE.MeshLambertMaterial({color:SIDEC[s], transparent:true, opacity:.2, side:THREE.DoubleSide, depthWrite:false})); m.renderOrder = 1; g.add(m);
+      }
+      const posOf = (ri, k) => { const a = d.rows[ri][s]; return k < 0 ? local(ang[ri], 0, 0, 0) : local(ang[ri], a.ents[k].mid, a.ents[k].depth, a.ents[k].x); };
+      // relationships: black, drawn as thin solid rods so they keep their thickness (WebGL lines are always 1px); one pattern per kind
+      if (st.layers.link){
+        const rest = [], sel = [];
+        rows.forEach(ri => { const isSel = one || (di === st.focus && ri === st.row); d.rows[ri][s].links.forEach(l => pattern(isSel ? sel : rest, posOf(ri, l.from), posOf(ri, l.to), RELS[l.rel].dash)); });
+        [[rest, one ? .03 : .014, .45], [sel, one ? .03 : .022, 1]].forEach(([arr, r, op]) => { if (arr.length) g.add(rods(arr, r, op)); });
+      }
+      // question nodes at the start of each spoke
+      const qm = new THREE.InstancedMesh(qGeo, new THREE.MeshLambertMaterial({color:0x111111}), rows.length), mm = new THREE.Matrix4();
+      rows.forEach((ri, k) => { const v = local(ang[ri], 0, 0, 0); mm.makeTranslation(v.x, v.y, v.z); qm.setMatrixAt(k, mm); }); g.add(qm);
+      // entity nodes: solid, one 3D form per type, coloured by answer
+      if (st.layers.node){
+        const byType = {}; rows.forEach(ri => d.rows[ri][s].ents.forEach((e, k) => (byType[e.type] = byType[e.type] || []).push({di, ri, s, k, e, v: posOf(ri, k)})));
+        const sc = new THREE.Matrix4(), m = new THREE.Matrix4(), rot = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(.4, .6, 0));
+        Object.entries(byType).forEach(([t, list]) => {
+          const im = new THREE.InstancedMesh(GEO[t], new THREE.MeshLambertMaterial({color:0xffffff, side: t === "H" ? THREE.DoubleSide : THREE.FrontSide}), list.length);
+          list.forEach((it, i) => { const on = !st.types.size || st.types.has(t), big = (one ? 2.2 : 1) * (it.ri === st.row && di === st.focus ? 1.35 : 1), k = (on ? (st.types.size ? 1.5 : 1) : .45) * big;
+            m.makeTranslation(it.v.x, it.v.y, it.v.z).multiply(rot).multiply(sc.makeScale(k, k, k)); im.setMatrixAt(i, m);
+            im.setColorAt(i, new THREE.Color(on ? SIDEC[s] : 0xd6cdc0)); });
+          im.userData.list = list; g.add(im); picks.push(im); });
+      }
+      if (one){ const lab = sprite(SIDEN[s], .7, 500); lab.position.set(2.2, R0 - .3, 0); g.add(lab); }
+    });
+  });
+  applySep(); placeMarker();
+}
+function applySep(){ const span = st.mode === "one" ? 9 : R0 + 9*DR; sideGroups.forEach(g => { g.position.y = (g.userData.side === "H" ? 1 : -1) * st.sep/100 * span * (st.side === "both" ? 1 : 0); }); }
+function placeMarker(){
+  marker.visible = false; if (!st.ent) return;
+  for (const im of picks){ const i = im.userData.list.findIndex(it => it.di === st.ent.di && it.ri === st.ent.ri && it.s === st.ent.s && it.k === st.ent.k);
+    if (i >= 0){ const v = im.userData.list[i].v.clone(); im.parent.localToWorld(v); marker.position.copy(v); marker.scale.setScalar(st.mode === "one" ? 1.6 : 1); marker.visible = true; return; } }
+}
+function camPreset(v){
+  const box = new THREE.Box3().setFromObject(world); if (box.isEmpty()) return; const c = box.getCenter(new THREE.Vector3()), size = box.getSize(new THREE.Vector3()), R = Math.max(size.x, size.y, size.z);
+  controls.target.copy(c); st.cam = v;
+  if (v === "elev") camera.position.set(c.x + R*2.1, c.y, c.z - R*.12);
+  else if (v === "end") camera.position.set(c.x, c.y, box.min.z - R*1.1);
+  else if (v === "top") camera.position.set(c.x - R*.02, c.y + R*1.9, c.z);
+  else camera.position.set(c.x + R*1.05, c.y + R*.4, c.z + R*.35);
+  camera.updateProjectionMatrix();
+}
+
+/* ================= legend ================= */
+(function legend(){
+  const T = document.getElementById("legTypes");
+  Object.keys(TYPES).forEach(t => { const b = document.createElement("button"); b.setAttribute("aria-pressed", "false"); b.innerHTML = thumb(t) + TYPES[t]; b.title = "Pick out " + TYPES[t].toLowerCase() + " entities";
+    b.onclick = () => { const on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on); on ? st.types.add(t) : st.types.delete(t); build(); }; T.appendChild(b); });
+  document.getElementById("legRels").innerHTML = Object.values(RELS).map(r => `<div class="it"><svg width="34" height="10" aria-hidden="true"><line x1="1" y1="5" x2="33" y2="5" stroke="#111" stroke-width="3"${r.svg ? `stroke-dasharray="${r.svg}"` : ""}/></svg>${r.name}</div>`).join("");
+})();
+
+/* ================= picking and the entity card ================= */
+const ray = new THREE.Raycaster(), mouse = new THREE.Vector2(), card = document.getElementById("card");
+function pick(ev){ const r = canvas.getBoundingClientRect(); mouse.set((ev.clientX-r.left)/r.width*2-1, -(ev.clientY-r.top)/r.height*2+1); ray.setFromCamera(mouse, camera);
+  const h = ray.intersectObjects(picks)[0]; return h ? h.object.userData.list[h.instanceId] : null; }
+function relText(a, k){ const nm = r => r < 0 ? "the question" : `#${r+1} ${TYPES[a.ents[r].type].toLowerCase()}`, e = a.ents[k];
+  const out = a.links.filter(l => l.to === k && l.rel !== "reinforces").map(l => `${RELS[l.rel].name.split(" (")[0].toLowerCase()} ${nm(l.from)}`)
+    .concat(a.links.filter(l => l.from === k && l.rel !== "reinforces").length ? [] : [])
+    .concat(e.parent != null ? [`${RELS[relOf(e.type)].name.split(" (")[0].toLowerCase()} ${nm(e.parent)}`] : [])
+    .concat(e.returns.map(r => `reinforces ${nm(r)}`));
+  return [...new Set(out)].join(" · "); }
+function showCard(it){
+  if (!it){ card.hidden = true; return; }
+  const d = DS[it.di], a = d.rows[it.ri][it.s], e = a.ents[it.k];
+  card.hidden = false;
+  card.innerHTML = `<div class="ty">${thumb(e.type).replace("<img", '<img style="width:30px;height:30px"')}<span></span></div><div class="meta"></div><div class="meta"></div><p></p>`;
+  card.querySelector(".ty span").textContent = TYPES[e.type];
+  card.children[1].innerHTML = `<span class="dot ${DOT[it.s]}"></span>${SIDEN[it.s]} · ${d.name} · row ${it.ri+1} · entity ${it.k+1} of ${a.ents.length} · depth ${e.depth}`;
+  card.children[2].textContent = relText(a, it.k) || "starts a new thread";
+  card.children[3].textContent = e.text;
+}
+let down = null;
+canvas.addEventListener("pointerdown", e => down = [e.clientX, e.clientY]);
+canvas.addEventListener("pointerup", e => { if (down && Math.hypot(e.clientX-down[0], e.clientY-down[1]) < 5){ const it = pick(e);
+  if (it){ const rowChanged = st.focus !== it.di || st.row !== it.ri; st.focus = it.di; st.row = it.ri; st.ent = it; showCard(it); renderRow(); if (rowChanged) build(); else placeMarker(); } } down = null; });
+
+/* ================= panel ================= */
+const $ = id => document.getElementById(id);
+function segInit(id, key, fn){ $(id).addEventListener("click", ev => { const b = ev.target.closest("button"); if (!b) return; [...$(id).children].forEach(x => x.setAttribute("aria-pressed", x === b)); if (key) st[key] = b.dataset.v; fn && fn(b.dataset.v); }); }
+segInit("mode", "mode", () => { st.ent = null; showCard(null); build(); camPreset(st.mode === "one" ? "elev" : "3d"); });
+segInit("side", "side", () => { build(); });
+segInit("cam", null, v => { controls.autoRotate = false; $("t-spin").setAttribute("aria-pressed", "false"); camPreset(v); });
+$("sep").addEventListener("input", e => { st.sep = +e.target.value; $("sepv").textContent = st.sep + "%"; applySep(); placeMarker(); });
+$("sep").addEventListener("change", () => camPreset(st.cam || "3d"));
+$("nrows").addEventListener("input", e => { st.nrows = +e.target.value; $("nrowsv").textContent = st.nrows; });
+$("nrows").addEventListener("change", () => { build(); renderInsights(); });
+$("sort").addEventListener("change", e => { st.sort = e.target.value; build(); });
+const layerBtn = (id, key) => $(id).addEventListener("click", e => { const b = e.currentTarget, on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on); st.layers[key] = on; build(); });
+layerBtn("t-sail", "sail"); layerBtn("t-link", "link"); layerBtn("t-node", "node");
+$("t-spin").addEventListener("click", e => { const b = e.currentTarget, on = b.getAttribute("aria-pressed") !== "true"; b.setAttribute("aria-pressed", on); controls.autoRotate = on; });
+
+function goRow(i){ const d = DS[st.focus]; st.row = Math.max(0, Math.min(d.rows.length-1, i)); st.ent = null; showCard(null); renderRow(); build(); }
+$("prev").onclick = () => goRow(st.row - 1); $("next").onclick = () => goRow(st.row + 1);
+$("rowno").addEventListener("change", e => goRow((+e.target.value || 1) - 1));
+$("focusds").addEventListener("change", e => { st.focus = +e.target.value; goRow(0); });
+
+function counts(a){ const c = {}; Object.keys(TYPES).forEach(t => c[t] = 0); a.ents.forEach(e => c[e.type]++); return c; }
+function renderRow(){
+  const d = DS[st.focus], r = d.rows[st.row];
+  $("rowno").value = st.row + 1; $("rowno").max = d.rows.length; $("rowof").textContent = "of " + d.rows.length; $("focusds").value = st.focus;
+  $("question").textContent = r.q.replace(/\s*(Please )?explain like I'm five\.?/i, "");
+  $("typo").innerHTML = ["H","L"].map(s => `<span><span class="dot ${DOT[s]}"></span>${SIDEN[s]}: ${r[s].shape}</span>`).join("");
+  const ch = counts(r.H), cl = counts(r.L), nh = r.H.ents.length, nl = r.L.ents.length, pc = (k, n) => (100*k/n).toFixed(0) + "%";
+  $("rowcounts").innerHTML = `<thead><tr><th>Entity type</th><th><span class="dot dh"></span>Human</th><th>%</th><th><span class="dot dl"></span>LLM</th><th>%</th></tr></thead><tbody>` +
+    Object.keys(TYPES).filter(t => ch[t] || cl[t]).map(t => `<tr><td style="display:flex;align-items:center;gap:6px">${thumb(t).replace("<img", '<img style="width:18px;height:18px"')}${TYPES[t]}</td><td>${ch[t]}</td><td>${pc(ch[t], nh)}</td><td>${cl[t]}</td><td>${pc(cl[t], nl)}</td></tr>`).join("") +
+    `<tr><td><b>Total entities</b></td><td>${nh}</td><td>100%</td><td>${nl}</td><td>100%</td></tr>` +
+    Object.keys(RELS).map(rel => `<tr><td>${RELS[rel].name.split(" (")[0]} links</td><td>${relCount(r.H, rel)}</td><td></td><td>${relCount(r.L, rel)}</td><td></td></tr>`).join("") +
+    `<tr><td>Max depth</td><td>${maxDepth(r.H)}</td><td></td><td>${maxDepth(r.L)}</td><td></td></tr><tr><td>Labels</td><td colspan="2">${METHOD[r.hm]}</td><td colspan="2">${METHOD[r.lm]}</td></tr></tbody>`;
+  const box = $("ents"); box.innerHTML = "";
+  ["H","L"].forEach(s => { const h = document.createElement("h3"); h.innerHTML = `<span class="dot ${DOT[s]}"></span>`; h.append(`${SIDEN[s]} · ${r[s].words} words`); box.appendChild(h);
+    r[s].ents.forEach((e, k) => { const el = document.createElement("div"); el.className = "ent"; el.tabIndex = 0;
+      el.innerHTML = `<div class="tag"><b>${thumb(e.type)}</b>#${k+1} · depth ${e.depth}</div><p></p>`;
+      el.querySelector("b").append(TYPES[e.type]); el.querySelector("p").textContent = e.text; el.title = relText(r[s], k);
+      const go = () => { st.ent = {di:st.focus, ri:st.row, s, k}; showCard(st.ent); placeMarker(); box.querySelectorAll(".on").forEach(x => x.classList.remove("on")); el.classList.add("on"); };
+      el.onclick = go; el.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); go(); } }; box.appendChild(el); }); });
+}
+
+/* ================= insights ================= */
+function agg(d){ const rows = order(d).map(i => d.rows[i]), o = {};
+  ["H","L"].forEach(s => { const A = rows.map(r => r[s]), n = A.length, ents = A.flatMap(a => a.ents);
+    const tc = {}; Object.keys(TYPES).forEach(t => tc[t] = 0); ents.forEach(e => tc[e.type]++);
+    const sh = {}; SHAPES.forEach(x => sh[x] = 0); A.forEach(a => sh[a.shape]++);
+    const rel = {}; Object.keys(RELS).forEach(r => rel[r] = A.reduce((t, a) => t + relCount(a, r), 0) / n);
+    o[s] = {n, ents: ents.length / n, maxD: A.reduce((t, a) => t + maxDepth(a), 0) / n, meanD: ents.reduce((t, e) => t + e.depth, 0) / ents.length,
+      oppAns: A.filter(a => relCount(a, "disagrees") + relCount(a, "qualifies") > 0).length / n, rel,
+      tc, tp: Object.fromEntries(Object.entries(tc).map(([t, k]) => [t, k / ents.length])), sh }; });
+  return o; }
+const short = n => n.replace(/^HC3 /, "");
+function renderInsights(){
+  const vis = DS.map((d, i) => i).filter(i => DS[i].visible), A = {}; vis.forEach(i => A[i] = agg(DS[i]));
+  const f = (v, p=1) => v.toFixed(p), pct = v => (100*v).toFixed(0) + "%";
+  const head = `<thead><tr><th></th>${vis.map(i => `<th colspan="2">${short(DS[i].name)}</th>`).join("")}</tr><tr><th></th>${vis.map(() => `<th><span class="dot dh"></span>H</th><th><span class="dot dl"></span>LLM</th>`).join("")}</tr></thead>`;
+  const metrics = [["Entities", a => f(a.ents)], ["Max depth", a => f(a.maxD)], ["Mean depth", a => f(a.meanD, 2)],
+    ["Supports links", a => f(a.rel.supports, 2)], ["Disagrees links", a => f(a.rel.disagrees, 2)], ["Qualifies links", a => f(a.rel.qualifies, 2)], ["Reinforces links", a => f(a.rel.reinforces, 2)],
+    ["Answers that disagree or qualify", a => pct(a.oppAns)]];
+  $("cmp").innerHTML = head + `<tbody>` + metrics.map(([n, fn]) => `<tr><td>${n}</td>${vis.map(i => `<td>${fn(A[i].H)}</td><td>${fn(A[i].L)}</td>`).join("")}</tr>`).join("") +
+    `<tr><td>Labels</td>${vis.map(i => `<td colspan="2">${METHOD[methodOf(DS[i])]}</td>`).join("")}</tr></tbody>`;
+  $("typotbl").innerHTML = head.replace("<th></th>", "<th>Shape</th>") + `<tbody>` + SHAPES.map(s => `<tr><td>${s}</td>${vis.map(i => `<td>${pct(A[i].H.sh[s]/A[i].H.n)}</td><td>${pct(A[i].L.sh[s]/A[i].L.n)}</td>`).join("")}</tr>`).join("") + `</tbody>`;
+  const mi = +$("mixds").value || 0, M = A[mi] || agg(DS[mi]);
+  const mx = Math.max(...Object.keys(TYPES).flatMap(t => [M.H.tp[t], M.L.tp[t]]));
+  $("mix").innerHTML = Object.keys(TYPES).map(t => `<div class="bar"><span>${thumb(t)}${TYPES[t]}</span><span class="tr"><i class="hb" style="width:${100*M.H.tp[t]/mx}%"></i><i class="lb" style="width:${100*M.L.tp[t]/mx}%"></i></span><span>${pct(M.H.tp[t])} · ${pct(M.L.tp[t])}</span></div>`).join("");
+  const out = [];
+  vis.forEach(i => { const a = A[i], nm = DS[i].name, top = s => SHAPES.reduce((b, x) => a[s].sh[x] > a[s].sh[b] ? x : b, SHAPES[0]);
+    const ratio = Object.keys(TYPES).map(t => [t, (a.L.tp[t] + .005) / (a.H.tp[t] + .005)]).filter(([t]) => a.L.tc[t] + a.H.tc[t] >= 8).sort((x, y) => y[1] - x[1]);
+    const more = ratio.slice(0, 2).filter(r => r[1] > 1.3).map(([t, r]) => `${TYPES[t].toLowerCase()} (${r.toFixed(1)}×)`), less = ratio.slice(-2).reverse().filter(r => r[1] < .77).map(([t, r]) => `${TYPES[t].toLowerCase()} (${(1/r).toFixed(1)}×)`);
+    out.push(`<b>${nm}</b> (${a.H.n} rows): the most common shape is ${top("H")} for human answers (${pct(a.H.sh[top("H")]/a.H.n)}) and ${top("L")} for the LLM (${pct(a.L.sh[top("L")]/a.L.n)}).`);
+    out.push(`Human answers reach depth ${f(a.H.maxD)} on average against ${f(a.L.maxD)} for the LLM. The LLM reinforces earlier points ${f(a.L.rel.reinforces, 2)} times per answer against ${f(a.H.rel.reinforces, 2)}; humans disagree or qualify ${f(a.H.rel.disagrees + a.H.rel.qualifies, 2)} times against ${f(a.L.rel.disagrees + a.L.rel.qualifies, 2)}.`);
+    if (more.length || less.length) out.push(`Compared with humans, the LLM uses more ${more.join(" and ") || "of no type in particular"}${less.length ? ", and less " + less.join(" and ") : ""}.`);
+    if (methodOf(DS[i]) === "rule") out.push(`${nm} uses rule-based labels, which favour simple lines. Label it with Claude before comparing it with a Claude-labelled dataset.`); });
+  if (vis.length > 1){ const gaps = vis.map(i => [DS[i].name, A[i].H.maxD - A[i].L.maxD]).sort((a, b) => b[1] - a[1]);
+    out.push(`Across datasets, the depth gap (human minus LLM) is largest in ${gaps[0][0]} (${f(gaps[0][1])}) and smallest in ${gaps[gaps.length-1][0]} (${f(gaps[gaps.length-1][1])}).`); }
+  $("insights").innerHTML = out.map(s => `<li>${s}</li>`).join("");
+}
+$("mixds").addEventListener("change", renderInsights);
+
+function renderDatasets(){
+  const box = $("dslist"); box.innerHTML = "";
+  DS.forEach((d, i) => { const m = methodOf(d), el = document.createElement("div"); el.className = "ds";
+    el.innerHTML = `<input type="checkbox" id="vis${i}" ${d.visible ? "checked" : ""}><label class="name" for="vis${i}"></label><span class="badge ${m === "rule" || m === "mixed" ? "warn" : ""}">${METHOD[m]}</span><div class="sub">${d.rows.length} rows${d.saved === false ? " · only in this browser tab" : ""}</div>`;
+    el.querySelector(".name").textContent = d.name; el.querySelector("input").setAttribute("aria-label", "Show " + d.name);
+    el.querySelector("input").onchange = ev => { d.visible = ev.target.checked; build(); renderInsights(); camPreset("3d"); };
+    if (m !== "manual" && sampleFn){ const b = document.createElement("button"); b.className = "btn"; b.textContent = d.job ? "Stop labelling" : (m === "claude" ? "Relabel with Claude" : "Label with Claude"); b.style.gridColumn = "2 / 4"; b.style.justifySelf = "start";
+      b.onclick = () => d.job ? d.job.abort() : labelWithClaude(i); el.appendChild(b); }
+    box.appendChild(el); });
+  const opts = DS.map((d, i) => `<option value="${i}">${d.name}</option>`).join("");
+  const keep = [$("focusds").value, $("mixds").value]; $("focusds").innerHTML = opts; $("mixds").innerHTML = opts;
+  $("focusds").value = st.focus; $("mixds").value = keep[1] || 0;
+  $("nrows").max = Math.max(...DS.map(d => d.rows.length));
+}
+
+/* ================= Claude labelling (sample) and team storage (db) ================= */
+let sampleFn = null, db = null;
+const CODEBOOK = `You label answers for a study of reasoning structure. Each answer is split into numbered segments. Give each segment exactly one token.
+Token = TYPE + optional parent + optional returns, e.g. "C0", "R1", "E3", "S^1", "K2^0".
+TYPE codes: C claim/direct answer; R reason; E elaboration or mechanism; X example, evidence or fact; D definition or background; O opposing view (states the other side); H hedge, concession or uncertainty; B rebuttal of an opposing view; S restatement of an earlier point; K conclusion or summary; V advice; T aside, pleasantry or personal note.
+parent = the segment number this one builds on (0 = the question). Prefer the most specific parent. List items of the same kind share their sibling's parent.
+returns "^n" = this segment substantially repeats segment n (^0 = repeats the question). An S usually has returns and no parent.
+"+" = this segment continues the previous one and merges into it (never on segment 1).
+References must point to earlier segments only.`;
+async function labelWithClaude(di){
+  const d = DS[di]; if (!sampleFn) return; const ctl = new AbortController(); d.job = ctl; renderDatasets();
+  const B = 4, todo = d.rows.map((r, i) => i).filter(i => d.rows[i].hm !== "claude" || d.rows[i].lm !== "claude");
+  let done = 0, failed = 0; $("dsmsg").textContent = `Labelling ${d.name}: 0 of ${todo.length} rows…`;
+  try {
+    for (let b = 0; b < todo.length; b += B){
+      const batch = todo.slice(b, b + B);
+      const prompt = CODEBOOK + `\n\nReply with only JSON: {"rows":[{"row":<row number>,"H":[tokens for the human answer],"L":[tokens for the LLM answer]}]}, one token per segment, in order.\n\n` +
+        batch.map(i => { const r = d.rows[i]; return `ROW ${i+1}\nQUESTION: ${r.q}\nHUMAN ANSWER SEGMENTS:\n${r.h.map((s, k) => `${k+1}. ${s}`).join("\n")}\nLLM ANSWER SEGMENTS:\n${r.l.map((s, k) => `${k+1}. ${s}`).join("\n")}`; }).join("\n\n");
+      const res = await sampleFn.json(prompt, {signal: ctl.signal, modelTier: "default"});
+      const got = Array.isArray(res?.rows) ? res.rows : [];
+      for (const i of batch){ const r = d.rows[i], g = got.find(x => +x.row === i+1) || {};
+        let ok = 0; [["h","H"],["l","L"]].forEach(([k, K2]) => { const t = Array.isArray(g[K2]) ? g[K2].map(String) : null;
+          if (t && buildAnswer(r[k], t)){ r[k+"t"] = t; r[k+"m"] = "claude"; ok++; } });
+        if (ok < 2) failed++; prepRow(r);
+        if (db && ok) await db.doc(`labels/${d.id}/rows/${i+1}`).set({ht:r.ht, lt:r.lt, hm:r.hm, lm:r.lm}).catch(() => {}); }
+      done += batch.length; $("dsmsg").textContent = `Labelling ${d.name}: ${done} of ${todo.length} rows${failed ? `, ${failed} kept rule-based labels` : ""}…`;
+      build(); renderInsights(); if (st.focus === di) renderRow();
+    }
+    $("dsmsg").textContent = `${d.name} labelled with Claude${failed ? `; ${failed} rows kept rule-based labels because Claude's tokens did not match the segments` : ""}.`;
+  } catch (e) {
+    $("dsmsg").textContent = {cancelled:"Labelling stopped. Rows already labelled are kept.", not_granted:"Claude isn't allowed for this page, so labels stay rule-based.", rate_limited:"Claude is busy or your usage limit is reached. Try again later; finished rows are kept.", invalid_json:"Claude's reply couldn't be read. Try again; finished rows are kept.", sampling_disabled:"Claude isn't available on this account."}[e?.code] || "Labelling stopped after an error. Try again; finished rows are kept.";
+  } finally { d.job = null; renderDatasets(); renderInsights(); }
+}
+async function loadTeam(){
+  try {
+    const ds = await db.collection("datasets").get();
+    for (const doc of ds.docs){ const m = doc.data(); if (!m || DS.some(d => d.id === doc.id)) continue;
+      const chunks = await db.collection(`datasets/${doc.id}/chunks`).get(); const rows = [];
+      chunks.docs.map(c => c.data()).sort((a, b) => a.k - b.k).forEach(c => (c.rows || []).forEach(r => rows.push({q:r.q, h:r.h, l:r.l})));
+      if (rows.length) DS.push({id:doc.id, name:m.name || doc.id, builtin:false, visible:false, rows: rows.map(r => prepRow(r))}); }
+    for (const d of DS){ if (d.rows.every(r => r.hm === "manual")) continue;
+      const lab = await db.collection(`labels/${d.id}/rows`).get();
+      lab.docs.forEach(x => { const i = +x.id - 1, v = x.data(), r = d.rows[i]; if (!r || !v) return;
+        if (v.ht && buildAnswer(r.h, v.ht)){ r.ht = v.ht; r.hm = v.hm || "claude"; } if (v.lt && buildAnswer(r.l, v.lt)){ r.lt = v.lt; r.lm = v.lm || "claude"; } prepRow(r); }); }
+    renderDatasets(); build(); renderInsights(); renderRow();
+  } catch (e) { $("dsmsg").textContent = "Saved team datasets couldn't be loaded right now."; }
+}
+
+/* ================= CSV import ================= */
+function parseCSV(text){ const rows = []; let row = [], f = "", q = false;
+  for (let i = 0; i < text.length; i++){ const c = text[i];
+    if (q){ if (c === '"'){ if (text[i+1] === '"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true; else if (c === ","){ row.push(f); f = ""; } else if (c === "\n" || c === "\r"){ if (c === "\r" && text[i+1] === "\n") i++; row.push(f); rows.push(row); row = []; f = ""; } else f += c; }
+  if (f || row.length){ row.push(f); rows.push(row); } return rows.filter(r => r.some(x => x.trim())); }
+let csvRows = null;
+const fail = (id, msg) => { $(id).innerHTML = ""; const s = document.createElement("span"); s.className = "err"; s.textContent = msg; $(id).appendChild(s); };
+$("csvfile").addEventListener("change", async e => { const file = e.target.files[0]; $("csvmsg").textContent = ""; if (!file) return;
+  csvRows = parseCSV((await file.text()).replace(/^﻿/, "")); if (csvRows.length < 2){ fail("csvmsg", "That file has no data rows. Check it is a CSV with a header row."); csvRows = null; return; }
+  const head = csvRows[0], opt = head.map((h, i) => `<option value="${i}"></option>`).join("");
+  ["colq","colh","coll"].forEach(id => { $(id).innerHTML = opt; [...$(id).options].forEach((o, i) => o.textContent = head[i] || "column " + (i+1)); });
+  const find = re => Math.max(0, head.findIndex(h => re.test(h)));
+  $("colq").value = find(/question|prompt|query/i); $("colh").value = find(/human/i); $("coll").value = find(/chatgpt|gpt|llm|model|\bai\b|machine|claude|bot/i);
+  if (!$("csvname").value) $("csvname").value = file.name.replace(/\.csv$/i, "");
+  $("csvmsg").textContent = `${csvRows.length - 1} rows found. Check the columns, then add the dataset.`; });
+$("csvadd").addEventListener("click", async () => {
+  if (!csvRows){ fail("csvmsg", "Choose a CSV file first."); return; }
+  const name = $("csvname").value.trim(); if (!name){ fail("csvmsg", "Give the dataset a name."); return; }
+  const [qi, hi, li] = ["colq","colh","coll"].map(id => +$(id).value), gap = +$("csvdiff").value || Infinity, max = +$("csvmax").value || 100;
+  if (hi === li){ fail("csvmsg", "The human and LLM columns must be different."); return; }
+  const wc = s => (s || "").trim().split(/\s+/).filter(Boolean).length, picked = [];
+  for (const r of csvRows.slice(1)){ const h = r[hi], l = r[li]; if (!h || !l || !h.trim() || !l.trim()) continue; if (Math.abs(wc(h) - wc(l)) >= gap) continue; picked.push({q: clean(r[qi] || ""), h: segment(h), l: segment(l)}); if (picked.length >= max) break; }
+  if (!picked.length){ fail("csvmsg", "No rows passed the filter. Raise the max word gap or check the columns."); return; }
+  const id = "u-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 40) + "-" + Date.now().toString(36);
+  const d = {id, name, builtin:false, visible:true, rows: picked.map(r => prepRow(r)), saved:false}; DS.push(d);
+  if (db){ try { await db.doc(`datasets/${id}`).set({name, n: picked.length, created: new Date().toISOString()});
+      for (let k = 0; k * 20 < picked.length; k++) await db.doc(`datasets/${id}/chunks/${k}`).set({k, rows: picked.slice(k*20, k*20+20).map(r => ({q:r.q, h:r.h, l:r.l}))});
+      d.saved = true; } catch (e) {} }
+  st.focus = DS.length - 1; st.row = 0; renderDatasets(); build(); renderInsights(); renderRow(); camPreset("3d");
+  $("csvmsg").textContent = `Added ${name}: ${picked.length} rows, a new cone at the end of the line${d.saved ? ", saved for everyone with the link" : ""}.`;
+});
+
+/* ================= export ================= */
+let downloads = null;
+$("export").addEventListener("click", async () => {
+  const head = ["dataset","row","answer","labels","shape","entities","max_depth"].concat(Object.values(TYPES), Object.values(TYPES).map(t => t + " %"), Object.keys(RELS).map(r => r + "_links"));
+  const lines = [head.join(",")];
+  DS.forEach(d => d.rows.forEach((r, i) => ["H","L"].forEach(s => { const c = counts(r[s]), n = r[s].ents.length;
+    lines.push([JSON.stringify(d.name), i+1, s === "H" ? "human" : "llm", r[s === "H" ? "hm" : "lm"], JSON.stringify(r[s].shape), n, maxDepth(r[s])].concat(Object.keys(TYPES).map(t => c[t]), Object.keys(TYPES).map(t => (100*c[t]/n).toFixed(1)), Object.keys(RELS).map(rel => relCount(r[s], rel))).join(",")); })));
+  if (!downloads){ $("expmsg").textContent = "Downloads aren't available in this view."; return; }
+  try { await downloads.save({filename:"entity_type_counts.csv", data: lines.join("\n")}); $("expmsg").textContent = "Saved."; }
+  catch (e) { $("expmsg").textContent = e?.code === "declined" ? "" : "The file wasn't saved."; }
+});
+
+/* ================= boot ================= */
+function resize(){ const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return; renderer.setSize(w, h, false); camera.aspect = w/h; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(canvas);
+renderDatasets(); build(); renderInsights(); renderRow(); resize(); camPreset("3d");
+(function loop(){ controls.update(); renderer.render(scene, camera); requestAnimationFrame(loop); })();
+if (window.claude?.use){
+  claude.use("sample").then(s => { sampleFn = s; renderDatasets(); });
+  claude.use("db").then(x => { db = x; if (db) loadTeam(); });
+  claude.use("downloads").then(x => { downloads = x; });
+}
+</script>
