@@ -1,5 +1,10 @@
 # Analysis Logic: Human vs. ChatGPT Financial Reasoning Graph Comparison
 
+> **Status: brainstorm.**
+> The current draft plan is `criteria.yaml`, computed by `src/measure.py`.
+> Node and edge types here (for example Company, Forecast, `causes`, `predicts`) are ideas only.
+> The types we use are in `entity_definition.yaml`, `relation.yaml` and `GUIDE.md`.
+
 ## 1. Objective and Core Hypotheses
 
 ### 1.1 Core Objective

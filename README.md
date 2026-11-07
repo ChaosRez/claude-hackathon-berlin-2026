@@ -26,9 +26,10 @@ and how deep the reasoning goes.
   For each, one human answer and one ChatGPT answer whose lengths differ by **at most 15 words** (10 or less preferred).
   We use the ChatGPT answers already in HC3; we don't generate new ones for now.
 - **Nodes are "entities" of reasoning,** not just sentences.
-  Which entities to use (argument, reason, claim, refutation, or better ones) is decided by the team in Task 2 and written in `GUIDE.md`.
-- **Relations** between entities are decided in Task 3 and written in `GUIDE.md`.
-- **How to analyse** is brainstormed in Task 6, after we can build and draw graphs.
+  The draft list is in `entity_definition.yaml` (Task 2), summarised in `GUIDE.md`.
+- **Relations** between entities are drafted in `relation.yaml` (Task 3), summarised in `GUIDE.md`.
+- **How to analyse** is drafted in `criteria.yaml` (Task 6) and computed by `src/measure.py`.
+- All three are drafts until the team marks `GUIDE.md` FINAL.
 
 See `TASKS.md` for the current tasks and owners.
 
@@ -61,47 +62,50 @@ Average answer length in words (from the HC3 paper):
   Share-alike means any data we derive from it (for example annotated graphs) must also be CC BY-SA 4.0.
   Name this in the submission issue.
 
-## Entities: what the nodes are (Task 2, to brainstorm)
+## Entities: what the nodes are (Task 2, draft)
 
 Instead of one node per sentence, nodes are the **parts of the reasoning**.
-Candidate entities:
+Full definitions, test questions and examples are in `entity_definition.yaml`.
 
-| Entity | Meaning | Example |
-|---|---|---|
-| `claim` | a statement the writer wants us to accept | "Index funds are a good choice." |
-| `reason` | why a claim is true | "Their fees are low." |
-| `evidence` / `example` | a fact, number or case backing a reason | "A 0.1% fee on $10,000 is $10 a year." |
-| `refutation` | an argument against a claim | "But you can't beat the market with them." |
-| `rebuttal` | an answer to a refutation | "Most active funds don't beat it either." |
-| `condition` | when a claim holds ("it depends") | "If you invest for over 10 years..." |
-| `recommendation` | what the reader should do | "So put most of your savings in one." |
+| Entity | Meaning |
+|---|---|
+| `claim` | a position the writer wants us to accept |
+| `reason` | a general statement explaining why another entity is true |
+| `evidence` | a specific fact, number, case, story or source (`kind`: fact, example, personal, source) |
+| `counterpoint` | a point against a claim, reason or recommendation |
+| `rebuttal` | the writer's reply to a counterpoint |
+| `condition` | when or for whom another entity holds ("it depends") |
+| `recommendation` | advice telling the reader what to do |
+| `caveat` | a generic warning not tied to a specific entity (candidate) |
+| `background` | neutral context, such as a definition |
+| `filler` | no content about the question; counted, not a node |
+| `other` | last resort, with a note; flagged for review |
 
-Questions for the team:
+Every word of the answer belongs to exactly one entity.
+Each entity can carry two flags: `main` (exactly one per text) and `hedged`.
 
-- Which of these are really useful for comparing human and LLM thinking? Keep the list short.
-- Are there better entities? For example `assumption` (an unstated belief), or `hedge` ("it may", "generally").
-- How big is one entity: a sentence, a clause, or any span of text?
-- Is there always one **main claim**?
+## Relations between entities (Task 3, draft)
 
-## Relations between entities (Task 3, to brainstorm)
-
-Starter list.
-Change it as a team, then freeze it in `GUIDE.md`.
+Full definitions and graph rules are in `relation.yaml`.
 
 | Relation | Meaning |
 |---|---|
-| `supports` | A gives a reason for B |
-| `attacks` | A argues against B |
-| `answers` | A replies to a refutation B |
-| `illustrates` | A is an example or evidence for B |
-| `qualifies` | A limits when B holds |
-| `concludes` | A is drawn from B (B leads to A) |
+| `supports` | A gives a reason or evidence to believe or follow B |
+| `attacks` | A gives a reason to believe or follow B less |
+| `refutes` | A answers an attack B |
+| `qualifies` | A limits when, for whom, or how strongly B holds |
+| `explains` | A helps understand B, without making it more believable |
+| `elaborates` | A adds detail to B, without a new reason |
+| `summarizes` | A repeats B in shorter form |
+| `concludes` | A is a new step drawn from B ("B, so A") |
+| `conflicts` | A and B contradict, unresolved |
+
+An entity may have several edges.
+Exactly one outgoing edge per entity is `primary`;
+the primary edges form a tree rooted at the main claim.
 
 Good relations should capture the **shape of the thinking**:
 does the writer consider the other side? Do they give conditions? Do they end with a conclusion?
-
-**Keep both lists short.**
-More types means more disagreement between people.
 
 ## Step-by-step plan
 
@@ -110,22 +114,21 @@ More types means more disagreement between people.
 - Load HC3 `finance`.
 - Keep pairs where the human and ChatGPT answers differ by **at most 15 words**.
 - Take **100 questions**. If fewer exist, write down how many.
-- Save to `data/pairs.jsonl`, plus a small script that rebuilds it.
+- `scripts/get_data.py` saves them to `data/finance-filtered.jsonl` (see Setup).
 
 ### Step 2: Agree on entities and relations (Tasks 2 and 3)
 
-- Brainstorm the entities and relations above.
-- Write them in `GUIDE.md`, with one example each.
+- Review the drafts in `entity_definition.yaml` and `relation.yaml`.
+- Agree on them in `GUIDE.md`, with one example each.
 - Two people each label the same 2 texts by hand.
   Compare.
   Fix the rules until you mostly agree.
 
 ### Step 3: Build and draw the graph (Tasks 4 and 5)
 
-- `src/extract.py`: send a text and `GUIDE.md` to Claude, get entities and relations back as JSON (format below).
-- `src/validate.py`: check every link points to a real entity and every type is allowed.
-- `src/build_graph.py`: turn the JSON into a `networkx` graph.
-- `src/draw.py`: draw a graph as an image, with one color per entity type and labeled arrows.
+- `src/extract.py` (to do): send a text and `GUIDE.md` to Claude, get entities and relations back as JSON (format below).
+- Validation: done by `check()` in `src/measure.py` (rules in `GUIDE.md` section 8).
+- `src/draw.py` (to do): draw a graph as an image, with one color per entity type and labeled arrows.
 
 ### Step 4: Check the extractor by hand (about 1 hour) — most important
 
@@ -141,28 +144,35 @@ More types means more disagreement between people.
 - **Stability:** run the script twice on 20 texts.
   Graphs should mostly match.
 
-### Step 5: Brainstorm the analysis (Task 6)
+### Step 5: Define the analysis (Task 6, draft)
 
-Ideas to start from:
+`criteria.yaml` defines the per-graph measures, in four groups:
 
-For each graph:
+- **Size:** nodes, edges, filler, edges per node, share of non-primary edges.
+- **Shape:** longest path, depth to the main claim, leaves, links into the main claim, branching, cycles, position of the main claim.
+- **Dialectic:** attacks, share of counterpoints that get answered, qualifies, conflicts, share of hedged entities.
+- **Composition:** share of each entity type and each relation type.
 
-- number of nodes
-- depth (longest chain of links to the main claim)
-- branching (average links into a node)
-- share of each entity and relation type (for example: how often is there a refutation?)
-- position of the main claim (start, middle, end)
+`src/measure.py` computes all of them from node and edge types only.
+`analyse logic.md` holds a wider brainstorm of ideas beyond this list.
 
 ### Step 6: Compare
 
 Simplest first:
 
-1. **Numbers:** compare human vs LLM averages from Step 5.
-2. **Small patterns:** count shapes like "example → reason → main claim" or "counterpoint that gets answered".
-3. **Whole graphs:** graph edit distance (`networkx`), using labels only, not words.
+1. **Numbers:** for each question, ChatGPT minus human, then average over questions (`src/measure.py`).
+   Test with Wilcoxon signed-rank, report effect size and number of pairs, correct with Holm.
+2. **Small patterns:** count shapes like "evidence → reason → main claim" or "counterpoint that gets answered".
+3. **Whole graphs:** graph edit distance on the primary tree, using labels only, not words.
 
 Always compare against a **baseline**: human vs human.
 If human-vs-LLM looks like human-vs-human, there is no real difference.
+
+The baseline method is still open:
+
+- `criteria.yaml` and `src/measure.py` use a split-half baseline over the human graphs (1,000 shuffles, 95% range).
+- `data_exploration.ipynb` section 11 found a second human answer in FiQA (the source of HC3 `finance`) for 61.9% of questions.
+  After its filters, 68 questions have two human answers, which would allow a same-question baseline.
 
 For the biggest difference you find, **read 3 real pairs** to make sure it's real and not a script error.
 
@@ -177,30 +187,46 @@ In `results/RESULTS.md` and `JOURNAL.md`:
 
 ## Graph format (JSON)
 
+Nodes are listed in text order.
+Full rules are in `GUIDE.md` section 8.
+
 ```json
 {
   "id": "finance_0012_human",
   "source": "human",
   "question": "Should I pay off my mortgage early?",
   "nodes": [
-    {"id": 1, "type": "claim", "text": "It depends on your interest rate.", "main": true},
+    {"id": 1, "type": "claim", "text": "It depends on your interest rate.", "main": true, "hedged": true},
     {"id": 2, "type": "condition", "text": "If the rate is low, investing usually earns more."}
   ],
   "edges": [
-    {"from": 2, "to": 1, "type": "qualifies"}
+    {"from": 2, "to": 1, "type": "qualifies", "primary": true}
   ]
 }
 ```
 
-## Planned folders
+## Folders
 
 ```
-GUIDE.md           entities and relations, agreed in Tasks 2 and 3
-data/              raw and paired texts
-prompts/           extractor prompts, versioned (extract_v1.txt, ...)
-src/               extract, validate, build_graph, draw, measure, compare
-annotations/       hand-made graphs for checking the extractor
-results/           numbers, plots, RESULTS.md
+GUIDE.md                 labelling guide (draft until marked FINAL)
+entity_definition.yaml   entity types (Task 2 draft)
+relation.yaml            relation types and graph rules (Task 3 draft)
+criteria.yaml            measures and comparison method (Task 6 draft)
+analyse logic.md         wider analysis brainstorm
+data_exploration.ipynb   HC3 audit and checks for this project
+scripts/                 get_data.py, filter_jsonl.py
+src/measure.py           validates graphs, computes measures, compares human vs ChatGPT
+tests/                   tests for src/measure.py
+data/                    HC3 data, not in git (rebuild with scripts/get_data.py)
+```
+
+Planned, not created yet:
+
+```
+prompts/       extractor prompts, versioned (extract_v1.txt, ...)
+src/           extract.py, draw.py
+annotations/   hand-made graphs for checking the extractor
+results/       graphs, numbers, plots, RESULTS.md
 ```
 
 ## What "done" looks like by evening
@@ -258,7 +284,33 @@ uv run scripts/get_data.py
 
 It downloads HC3 `finance` to `data/finance.jsonl`,
 then runs `scripts/filter_jsonl.py` to write `data/finance-filtered.jsonl`.
-Filter options pass through, for example `--max-diff 15`.
+Filter options pass through:
+
+| Option | Default | Meaning |
+|---|---|---|
+| `--max-diff` | 10 | max word-count difference between the human and ChatGPT answer |
+| `--min-total` | 150 | min combined word count of the pair |
+| `--max-total` | 500 | max combined word count of the pair |
+| `--limit` | 100 | max pairs to keep |
+
+The default `--max-diff 10` is the preferred value; the project allows up to 15.
+The script does not yet prefer opinion questions.
+
+To compute the measures on a folder of graph JSON files:
+
+```bash
+uv run src/measure.py results/graphs --out results/measures.csv
+```
+
+It prints how many graphs are valid and invalid per source,
+lists every invalid graph with its errors,
+and prints the human vs ChatGPT comparison with the split-half baseline.
+
+To run the tests:
+
+```bash
+uv run --with pytest --with pyyaml pytest tests
+```
 
 To re-run the data exploration:
 
@@ -274,7 +326,7 @@ To run Claude Code with your research loop:
 
 ```bash
 # Goal-directed loop: runs until condition is met
-/goal src/validate.py passes on every graph in results/graphs/, and the extractor-vs-hand score from annotations/ is recorded in JOURNAL.md
+/goal src/measure.py reports no invalid graphs in results/graphs/, and the extractor-vs-hand score from annotations/ is recorded in JOURNAL.md
 
 # Scheduled loop: periodically monitors and records progress
 /loop 10m check extractor output and log new results to JOURNAL.md
