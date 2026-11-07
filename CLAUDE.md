@@ -28,9 +28,12 @@ Teammates come from different fields.
 
 - `GUIDE.md` is the team's agreed definition of a correct graph.
   Never edit it on your own; suggest changes and let the team decide.
-- One sentence is one node, following the chunking rules in `GUIDE.md`.
-- Use only the relation types listed in `GUIDE.md`.
+- Nodes are reasoning entities (claim, reason, refutation, ...) and edges are relations, both defined in `GUIDE.md`.
+  Use only the types listed there.
   If one seems missing, tell the user instead of inventing it.
+- Until `GUIDE.md` exists and is marked final, the entity and relation types are still being brainstormed (Tasks 2 and 3).
+  Help with the brainstorm and with tasks that don't depend on it (data, drawing), but don't run the extractor on the full dataset.
+- Check `TASKS.md` for task owners before starting a task, so two people don't do the same work.
 - Graph comparisons use node roles and edge types only, never the sentence text.
 - Every human-vs-LLM result must be shown next to a human-vs-human baseline.
 - Every reported result must state how well the extractor matched the hand labels in `annotations/`, separately for human and LLM texts.
@@ -40,7 +43,8 @@ Teammates come from different fields.
 
 ### Data
 
-- Use HC3 `finance` or `wiki_csai`: other subsets have very different human and LLM answer lengths, which biases graph size.
+- Use HC3 `finance` only, and keep pairs whose human and ChatGPT answers differ by at most 15 words.
+  Unequal lengths would bias graph size.
 - HC3 is CC BY-SA 4.0, so derived data (paired texts, graphs, annotations) must stay CC BY-SA 4.0, not the repository's default CC BY 4.0.
 
 ## Anti-patterns to avoid

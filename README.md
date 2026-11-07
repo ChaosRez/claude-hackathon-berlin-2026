@@ -10,15 +10,27 @@ Do LLMs build arguments the same way humans do?
 
 We don't look at *which words* are used.
 We look at *how the text is built*:
-which sentence supports which,
+which idea supports which,
 where counterpoints appear,
 and how deep the reasoning goes.
 
 ## The idea in 3 steps
 
-1. Take human and LLM answers to the **same questions**.
-2. Turn each answer into a **graph**: each sentence is a node, and links show how sentences relate.
+1. Take human and ChatGPT answers to the **same questions**, with almost the same length.
+2. Turn each answer into a **graph**: the parts of the reasoning (claims, reasons, refutations, ...) are nodes, and links show how they relate.
 3. Compare the graphs. Are LLM graphs deeper, flatter, more one-sided?
+
+## Decisions so far
+
+- **Data:** 100 questions from HC3 `finance`.
+  For each, one human answer and one ChatGPT answer whose lengths differ by **at most 15 words** (10 or less preferred).
+  We use the ChatGPT answers already in HC3; we don't generate new ones for now.
+- **Nodes are "entities" of reasoning,** not just sentences.
+  Which entities to use (argument, reason, claim, refutation, or better ones) is decided by the team in Task 2 and written in `GUIDE.md`.
+- **Relations** between entities are decided in Task 3 and written in `GUIDE.md`.
+- **How to analyse** is brainstormed in Task 6, after we can build and draw graphs.
+
+See `TASKS.md` for the current tasks and owners.
 
 ## Dataset
 
@@ -29,7 +41,7 @@ and how deep the reasoning goes.
 - Paper: https://arxiv.org/abs/2301.07597
 
 It has questions with both human and ChatGPT answers.
-We also generate **new answers with a current LLM** (for example Claude) for the same questions.
+We use the `finance` subset and keep only pairs with almost equal length (see Decisions).
 
 Average answer length in words (from the HC3 paper):
 
@@ -41,80 +53,83 @@ Average answer length in words (from the HC3 paper):
 | medicine | 93 | 210 |
 | open_qa | 35 | 132 |
 
-- **Use `finance` or `wiki_csai`**: human and LLM answers have similar length there.
-- **Pick opinion questions** ("Should I...", "Is it better to...").
+- **We use `finance`**: human and ChatGPT answers have similar length there on average.
+  We still filter each pair to a length difference of at most 15 words.
+- **Prefer opinion questions** ("Should I...", "Is it better to...").
   Pure explanations ("Why is the sky blue?") have no real argument.
 - **License:** HC3 is CC BY-SA 4.0 (some sources may be stricter).
   Share-alike means any data we derive from it (for example annotated graphs) must also be CC BY-SA 4.0.
   Name this in the submission issue.
 
-## How we chunk the text
+## Entities: what the nodes are (Task 2, to brainstorm)
 
-**One sentence = one node.**
-Simple and easy to check by hand.
+Instead of one node per sentence, nodes are the **parts of the reasoning**.
+Candidate entities:
 
-Edge cases to agree on (brainstorm):
+| Entity | Meaning | Example |
+|---|---|---|
+| `claim` | a statement the writer wants us to accept | "Index funds are a good choice." |
+| `reason` | why a claim is true | "Their fees are low." |
+| `evidence` / `example` | a fact, number or case backing a reason | "A 0.1% fee on $10,000 is $10 a year." |
+| `refutation` | an argument against a claim | "But you can't beat the market with them." |
+| `rebuttal` | an answer to a refutation | "Most active funds don't beat it either." |
+| `condition` | when a claim holds ("it depends") | "If you invest for over 10 years..." |
+| `recommendation` | what the reader should do | "So put most of your savings in one." |
 
-- A sentence with two ideas ("X is cheap, but Y is faster"): keep as one node, or split?
-- Very short sentences ("Yes.", "Good question."): drop, or keep?
-- Lists and bullet points: is each bullet one node?
+Questions for the team:
 
-Write the decisions in `GUIDE.md` (see Step 1).
+- Which of these are really useful for comparing human and LLM thinking? Keep the list short.
+- Are there better entities? For example `assumption` (an unstated belief), or `hedge` ("it may", "generally").
+- How big is one entity: a sentence, a clause, or any span of text?
+- Is there always one **main claim**?
 
-## Relations between sentences (draft, to brainstorm)
+## Relations between entities (Task 3, to brainstorm)
 
 Starter list.
 Change it as a team, then freeze it in `GUIDE.md`.
 
-| Relation | Meaning | Example |
-|---|---|---|
-| `supports` | B gives a reason for A | A: "Index funds are a good choice." B: "Their fees are low." |
-| `attacks` | B argues against A | B: "But you can't beat the market with them." |
-| `explains` | B clarifies or adds detail to A | B: "A fee is what you pay each year to the fund." |
-| `example` | B is a concrete case of A | B: "For example, a 0.1% fee on $10,000 is $10." |
-| `restates` | B says A again in other words | B: "In short, they are cheap." |
-| `none` | no clear link to any earlier sentence | filler, greetings |
+| Relation | Meaning |
+|---|---|
+| `supports` | A gives a reason for B |
+| `attacks` | A argues against B |
+| `answers` | A replies to a refutation B |
+| `illustrates` | A is an example or evidence for B |
+| `qualifies` | A limits when B holds |
+| `concludes` | A is drawn from B (B leads to A) |
 
-Open questions for the brainstorm:
+Good relations should capture the **shape of the thinking**:
+does the writer consider the other side? Do they give conditions? Do they end with a conclusion?
 
-- Does each sentence link to **only one** earlier sentence (a tree, easier) or **several** (a general graph)?
-- Can a sentence link **forward** (to a later sentence), or only backward?
-- How do we pick the **main claim**?
-  Rule idea: the sentence that most others support, directly or indirectly.
-
-**Keep the list short.**
-More relations means more disagreement between people.
+**Keep both lists short.**
+More types means more disagreement between people.
 
 ## Step-by-step plan
 
-### Step 1: Agree on the rules (about 1 hour)
+### Step 1: Get the data (Task 1)
 
-- Decide the chunking rules and relations above.
-- Write them in `GUIDE.md`, with one example per relation.
+- Load HC3 `finance`.
+- Keep pairs where the human and ChatGPT answers differ by **at most 15 words**.
+- Take **100 questions**. If fewer exist, write down how many.
+- Save to `data/pairs.jsonl`, plus a small script that rebuilds it.
+
+### Step 2: Agree on entities and relations (Tasks 2 and 3)
+
+- Brainstorm the entities and relations above.
+- Write them in `GUIDE.md`, with one example each.
 - Two people each label the same 2 texts by hand.
   Compare.
   Fix the rules until you mostly agree.
 
-### Step 2: Get the data (about 30 min)
+### Step 3: Build and draw the graph (Tasks 4 and 5)
 
-- Load HC3 (`finance` or `wiki_csai`).
-- Pick **50 questions** with human answers of 100–300 words.
-- For each question, ask an LLM to answer at a similar length.
-- Remove giveaway lines like "As an AI...".
-- Save to `data/pairs.jsonl`.
-
-### Step 3: Build the extractor (about 1 hour)
-
-- Split each text into sentences (`src/split.py`).
-- Send numbered sentences and `GUIDE.md` to Claude.
-  Ask for JSON (format below).
-- Check the JSON with code (`src/validate.py`):
-  every link points to a real sentence,
-  and every relation is in the allowed list.
+- `src/extract.py`: send a text and `GUIDE.md` to Claude, get entities and relations back as JSON (format below).
+- `src/validate.py`: check every link points to a real entity and every type is allowed.
+- `src/build_graph.py`: turn the JSON into a `networkx` graph.
+- `src/draw.py`: draw a graph as an image, with one color per entity type and labeled arrows.
 
 ### Step 4: Check the extractor by hand (about 1 hour) — most important
 
-- Pick **10 texts** (5 human, 5 LLM).
+- Pick **10 texts** (5 human, 5 ChatGPT).
   Hide which is which.
 - Two people label them by hand using `GUIDE.md`.
   Save in `annotations/`.
@@ -126,17 +141,19 @@ More relations means more disagreement between people.
 - **Stability:** run the script twice on 20 texts.
   Graphs should mostly match.
 
-### Step 5: Measure (about 30 min)
+### Step 5: Brainstorm the analysis (Task 6)
+
+Ideas to start from:
 
 For each graph:
 
 - number of nodes
 - depth (longest chain of links to the main claim)
 - branching (average links into a node)
-- share of `attacks`, `example`, `restates`, and so on
+- share of each entity and relation type (for example: how often is there a refutation?)
 - position of the main claim (start, middle, end)
 
-### Step 6: Compare (about 1 hour)
+### Step 6: Compare
 
 Simplest first:
 
@@ -166,11 +183,11 @@ In `results/RESULTS.md` and `JOURNAL.md`:
   "source": "human",
   "question": "Should I pay off my mortgage early?",
   "nodes": [
-    {"id": 1, "text": "It depends on your interest rate.", "main": true},
-    {"id": 2, "text": "If the rate is low, investing usually earns more."}
+    {"id": 1, "type": "claim", "text": "It depends on your interest rate.", "main": true},
+    {"id": 2, "type": "condition", "text": "If the rate is low, investing usually earns more."}
   ],
   "edges": [
-    {"from": 2, "to": 1, "type": "supports"}
+    {"from": 2, "to": 1, "type": "qualifies"}
   ]
 }
 ```
@@ -178,17 +195,17 @@ In `results/RESULTS.md` and `JOURNAL.md`:
 ## Planned folders
 
 ```
-GUIDE.md           labeling rules (chunking + relations), written in Step 1
+GUIDE.md           entities and relations, agreed in Tasks 2 and 3
 data/              raw and paired texts
 prompts/           extractor prompts, versioned (extract_v1.txt, ...)
-src/               split, extract, validate, measure, compare
+src/               extract, validate, build_graph, draw, measure, compare
 annotations/       hand-made graphs for checking the extractor
 results/           numbers, plots, RESULTS.md
 ```
 
 ## What "done" looks like by evening
 
-- A script that turns text into a sentence graph.
+- A script that turns text into a reasoning graph, and draws it.
 - A check showing how well it matches people on 10 texts.
 - One clear finding, or a clear "no difference found".
   Both are useful.
@@ -205,7 +222,7 @@ results/           numbers, plots, RESULTS.md
   https://arxiv.org/abs/2402.10586
 
 What we add:
-full sentence graphs with support and attack links,
+reasoning graphs with typed entities and links,
 graph shape measures,
 and an extractor checked by hand.
 
