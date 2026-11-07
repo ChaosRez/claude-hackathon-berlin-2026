@@ -1,93 +1,118 @@
-version: 0.2
-status: merged_framework
+version: 0.3
+status: merged_framework (draft, not agreed by the team)
+
+changes_in_0.3:
+  - Node and edge types now match entity_definition.yaml and relation.yaml (CLAUDE.md, use only those types).
+    Removed fact, event, company, qualification, conclusion, causes, compares, predicts.
+  - Removed goals and hypotheses about correctness and revision over time.
+    One HC3 answer is a single, static text, and we do not score correctness.
+  - Each research question and hypothesis names the measures that test it, using the names in src/measure.py.
+  - Validity rules list every check in src/measure.py.
+  - Baseline - every HC3 finance question has exactly one human answer (checked on all 3,933 questions); alternatives listed.
 
 objective:
   title: Human vs. ChatGPT reasoning graph comparison
   goal: >
-    Compare how humans and ChatGPT construct reasoning graphs in financial analysis,
-    focusing not only on answer correctness but on the structure, depth, revision,
-    and dialectical quality of the reasoning process.
+    Compare how humans and ChatGPT build their reasoning when answering the same finance question,
+    by comparing the structure of their reasoning graphs: depth, branching, and how they handle
+    the other side (counterpoints, rebuttals, conditions).
   principle: >
-    A final answer is only one visible outcome; the reasoning graph reveals the
-    underlying process, including evidence chains, support relations, counterarguments,
-    qualifications, and convergence or revision patterns.
+    The final answer is only the visible outcome. The reasoning graph shows how the answer is built:
+    support chains, counterarguments, qualifications, and how strongly everything converges on the main claim.
 
 research_questions:
-  - Does human reasoning contain more layered support, qualifications, and counterarguments than ChatGPT reasoning?
-  - Are ChatGPT responses more centralized, linear, and convergent than human reasoning?
-  - Do humans preserve deeper evidence chains and more iterative revision under uncertainty?
-  - Do structural differences exceed the natural Human-vs-Human baseline?
-  - Are unsupported claims, hollow conclusions, or circular reasoning patterns meaningful signals of reasoning quality?
+  - question: Does human reasoning contain more layered support, qualifications, and counterarguments than ChatGPT reasoning?
+    measures: [depth, longest_path, n_qualifies, n_attacks, answered_attack_share]
+  - question: Are ChatGPT answers more centralized and linear than human answers?
+    measures: [main_in_degree, mean_branching, edges_per_node, extra_edge_share]
+  - question: Do humans build deeper evidence chains?
+    measures: [depth, entity_share_evidence, relation_share_supports]
+  - question: Are unsupported points, self-contradictions or circular reasoning more common in one group?
+    measures: [n_leaves, n_conflicts, has_cycle]
+  - question: Do any of these differences exceed the natural Human-vs-Human baseline?
+    measures: [all of the above]
+    method: comparison.baseline
 
 core_hypotheses:
-  - ChatGPT reasoning is often more linear and single-directional, with stronger convergence around a central claim.
-  - Human reasoning usually contains more qualifications, attacks, layered support, and revision loops.
-  - Valuable reasoning in finance is not just the final conclusion, but the ability to build multi-branch argumentation under uncertainty.
-  - A Human-vs-Human baseline is required to separate genuine model differences from natural annotation variance.
-  - Structural stability and evidence depth matter more than surface wording similarity.
+  - hypothesis: ChatGPT reasoning is more linear, with more edges pointing straight at the main claim and fewer extra links.
+    expected: ChatGPT has higher main_in_degree and lower extra_edge_share.
+  - hypothesis: Human reasoning contains more qualifications, attacks and layered support.
+    expected: Humans have higher n_qualifies, n_attacks and depth.
+  - hypothesis: ChatGPT raises the other side less often, and answers it less often when it does.
+    expected: ChatGPT has lower n_attacks and answered_attack_share.
 
 framework:
   conceptual_layer:
     purpose: >
-      Explain what the comparison is about: structure, dynamics, and reasoning quality.
+      Explain what the comparison is about: the structure of the reasoning, not its wording or correctness.
     focus:
-      - structural differences
-      - topological differences
-      - dynamic logical differences
-      - representation-evolution differences
-      - evidence chain quality
-      - revision and correction behavior
+      - structure (size, depth, branching)
+      - topology (centralization, extra links, cycles)
+      - evidence chains
+      - dialectic (counterpoints raised and answered)
+    out_of_scope: >
+      Correctness of the answer, and dynamic or time-based differences (revision, correction,
+      how a graph evolves). Each HC3 answer is one static text. Kept as ideas for a future dataset.
 
   measurement_layer:
     purpose: >
-      Standardize the comparison so every graph is scored with the same rules.
+      Score every graph with the same rules.
     focus:
-      - node and edge construction
+      - node and edge construction (entity_definition.yaml, relation.yaml)
       - graph validity checks
-      - graph topology measures
+      - graph measures (below)
       - baseline comparison
       - significance testing
       - required reporting
 
   interpretation_layer:
     purpose: >
-      Translate raw measurement into meaningful claims about reasoning behavior.
+      Turn measurements into claims about reasoning behavior.
     rule: >
-      Differences within the Human-vs-Human baseline are treated as natural variation;
-      differences beyond the baseline are treated as meaningful reasoning divergence.
+      Differences inside the Human-vs-Human baseline are natural variation.
+      Only differences beyond the baseline, that also survive the significance test and
+      the reading of three example pairs, are reported as real differences.
 
 graph_definition:
   node_types:
     description: >
-      Nodes are reasoning units such as facts, claims, events, companies, indicators,
-      assumptions, conditions, or conclusions.
-    examples:
-      - fact
-      - event
-      - company
+      Nodes are entities (reasoning units). The types are defined in entity_definition.yaml;
+      only those types are used.
+    source: entity_definition.yaml
+    types:
       - claim
-      - qualification
-      - conclusion
+      - reason
+      - evidence
+      - counterpoint
+      - rebuttal
+      - condition
+      - recommendation
+      - caveat
+      - background
+      - other
+    flags: [main, hedged]
 
   edge_types:
     description: >
-      Edges are relations between reasoning units such as support, attack, qualify,
-      conclude, compare, or causal relations.
-    examples:
+      Edges are directed relations between entities ("A supports B"). The types are defined
+      in relation.yaml; only those types are used.
+    source: relation.yaml
+    types:
       - supports
       - attacks
+      - refutes
       - qualifies
+      - explains
+      - elaborates
+      - summarizes
       - concludes
-      - causes
-      - compares
-      - predicts
+      - conflicts
 
   filler:
     definition: >
-      Filler is a special node type that carries no substantive reasoning content.
+      Filler is a labelled entity type with no content about the question. It is not a graph node.
     handling:
-      - excluded from most graph measures
-      - counted separately as n_filler
+      - excluded from every measure except n_filler
       - edges touching filler are invalid
 
   graphs:
@@ -95,16 +120,24 @@ graph_definition:
       definition: All nodes and all edges.
     primary_tree:
       definition: >
-        All nodes and only edges with primary: true; this should be a tree rooted at the
-        main claim.
+        All nodes and only the primary edges. It must be a tree rooted at the main claim.
     path_length:
       definition: Counted in edges, not nodes; a single node has length 0.
 
   validity_rules:
-    - Graphs failing the checks in src/measure.py are counted as invalid graphs.
-    - Invalid graphs are listed and never silently dropped.
-    - Their measures are excluded from averages.
-    - Edges touching filler must not exist.
+    checks:
+      - Every node type and edge type is one of the types above.
+      - Node ids are unique, and every edge points to existing nodes.
+      - No self-loops, and at most one edge from A to B.
+      - Exactly one node is the main claim.
+      - Every node except the main claim and filler has at least one outgoing edge, and exactly one of them is primary.
+      - conflicts edges are never primary.
+      - No edge touches filler.
+      - The primary edges form a tree rooted at the main claim.
+    handling:
+      - Graphs failing a check in src/measure.py are counted as invalid.
+      - Invalid graphs are listed per group and never silently dropped.
+      - Their measures are excluded from averages.
 
 measures:
   size:
@@ -124,6 +157,7 @@ measures:
       definition: n_edges / n_nodes.
       graph: full_graph
       question: How interlinked is the reasoning?
+      note: In a tree this is (n - 1) / n, so it mostly measures extra edges, like extra_edge_share.
     extra_edge_share:
       definition: Share of edges that are not primary.
       graph: full_graph
@@ -189,58 +223,66 @@ measures:
 
   composition:
     entity_share:
-      definition: Share of nodes of each entity type.
+      definition: Share of nodes of each entity type (columns entity_share_<type>).
       graph: none
       question: What is the answer made of?
     relation_share:
-      definition: Share of edges of each relation type.
+      definition: Share of edges of each relation type (columns relation_share_<type>).
       graph: full_graph
       question: Which moves does the writer make?
 
 comparison:
   pairing:
     definition: >
-      Compare each question within the same prompt first, then average the per-question
-      differences across all prompts.
+      Each question has one human and one ChatGPT answer of almost equal length.
+      Compute the difference (ChatGPT minus human) within each question first,
+      then average these differences over all questions.
   baseline:
     why: >
       Every Human-vs-ChatGPT result must be shown next to a Human-vs-Human baseline.
     problem: >
-      In HC3 finance, each question typically has one human answer, so we cannot pair two
-      human answers directly.
+      In HC3 finance, every question has exactly one human answer (checked on all 3,933
+      questions), so we cannot pair two human answers to the same question.
     method: >
       Split-half baseline: shuffle the human graphs, split them into two halves, then compare
       the mean difference for each measure. Repeat 1,000 times with a fixed seed and report
       the 95% range.
+    limitation: >
+      The two halves contain different questions, so the range also includes differences
+      between questions and is wide.
+    alternatives:
+      - Extraction re-run - extract the same texts twice and compare the two graphs of each text.
+      - ChatGPT-vs-ChatGPT - 570 finance questions have two ChatGPT answers, if they pass the length filter.
     interpretation: >
-      A Human-vs-ChatGPT difference that falls inside the Human-vs-Human spread is not a
+      A Human-vs-ChatGPT difference that falls inside the Human-vs-Human range is not a
       real difference.
   significance:
-    method: Wilcoxon signed-rank test on per-question differences.
+    method: >
+      Wilcoxon signed-rank test on the per-question differences.
+      With few pairs (under about 20), use an exact sign-flip permutation test instead.
     reporting:
-      - effect size
+      - effect size (mean paired difference)
       - number of pairs
       - p-value only as secondary evidence
       - Holm correction for multiple comparisons
   whole_graph:
-    definition: Graph edit distance on the primary tree with node and edge types as labels.
-    purpose: Compare structural distance between Human-vs-ChatGPT and Human-vs-Human.
+    definition: Graph edit distance on the primary trees, with node and edge types as labels (never the text).
+    purpose: >
+      Compare the distance between the two answers to the same question (Human-vs-ChatGPT)
+      with the distance between human answers to different questions (Human-vs-Human).
   required_reporting:
     - Number of graphs per group and number of invalid graphs per group.
-    - Extractor agreement with hand labels, reported separately for human and ChatGPT texts.
+    - Extractor agreement with hand labels in annotations/, reported separately for human and ChatGPT texts.
     - Three real example pairs read by a person for the biggest observed difference.
 
 analysis_principles:
-  - Reasoning should be studied as a graph, not as a final prose summary.
-  - Node and edge types are the primary evidence; textual wording is not used directly for scoring.
-  - Human-vs-Human variation defines the natural noise floor.
-  - The purpose of the comparison is to understand reasoning style, not only correctness.
-  - Open-ended pattern discovery remains possible, but all official comparison results must use the fixed measurement protocol.
+  - Reasoning is studied as a graph, not as a prose summary.
+  - Node and edge types are the evidence; the entity text is never used for scoring.
+  - Human-vs-Human variation defines the noise floor.
+  - The goal is to understand reasoning style, not correctness.
+  - Open-ended pattern discovery is allowed, but official results use only the fixed measures above.
 
 merged_summary: >
-  This framework combines the conceptual emphasis on structural, topological, and dynamic
-  reasoning differences with the Task 6 measurement protocol for standardized comparison.
-  In other words, the conceptual layer explains what matters, while the measurement layer
-  guarantees that differences are observed consistently and compared against the appropriate
-  baseline. The result is a graph-based, statistically grounded, and interpretively meaningful
-  comparison of human and ChatGPT financial reasoning.
+  This framework combines the conceptual questions (structure, topology, evidence chains, dialectic)
+  with the Task 6 measurement protocol. The conceptual layer says what matters; the measurement layer
+  makes sure every graph is scored the same way and compared against the Human-vs-Human baseline.
