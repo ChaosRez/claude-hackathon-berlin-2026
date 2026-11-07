@@ -12,7 +12,7 @@ Steps refer to the plan in `README.md`.
   - Keep 100 questions where the human and ChatGPT answers differ by at most 15 words (10 or less preferred).
   - If fewer than 100 exist, record the real number in `JOURNAL.md`.
   - Save to `data/pairs.jsonl`, with the script that builds it.
-- [ ] Task 2: Decide the entities (Step 2)
+- [Eva] Task 2: Decide the entities (Step 2)
   - Which parts of reasoning become nodes: claim, reason, refutation, rebuttal, condition, evidence, recommendation, or better ones?
   - Decide how big one entity is (sentence, clause, or span).
   - Write the result in `GUIDE.md`.
