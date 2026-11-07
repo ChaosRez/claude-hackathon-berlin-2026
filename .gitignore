@@ -60,3 +60,7 @@ data/*.jsonl
 
 # Graphs extracted by the Streamlit app (rebuild by clicking "Extract")
 results/app/
+
+# Local-only study data (HC3 and arg-microtexts text; see experiments/approach_study/PLAN.md)
+data/approach_study
+data/external

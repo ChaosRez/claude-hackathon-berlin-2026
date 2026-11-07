@@ -1,0 +1,17 @@
+<section id="fairness" data-transition="fade" style="background:#F6F5F1;color:#1B2430;font-family:Inter, Arial, sans-serif;padding:128px 128px 160px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:start">
+<div style="display:flex;flex-direction:column;gap:32px">
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:72px;font-weight:600;line-height:1.1">Human answers are harder to extract</h2>
+<p style="font-size:32px;color:#4A5568;line-height:1.4">Every approach is less stable on human answers than on ChatGPT answers.</p>
+<p style="font-size:32px;color:#4A5568;line-height:1.4">So every result must be shown per source, and the hand check must cover both, as CLAUDE.md asks.</p>
+</div>
+<table style="font-size:30px;color:#1B2430">
+<tr><th style="width:34%">Edge overlap</th><th style="width:33%">Human</th><th style="width:33%">ChatGPT</th></tr>
+<tr><td>A</td><td>0.70</td><td>0.72</td></tr>
+<tr><td>A-son</td><td>0.56</td><td>0.81</td></tr>
+<tr><td>S</td><td>0.66</td><td>0.78</td></tr>
+<tr style="background:#FCE9DF"><td>V (chosen)</td><td>0.85</td><td>0.93</td></tr>
+<tr><td>P</td><td>0.73</td><td>0.86</td></tr>
+</table>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#5B6675">10 human and 10 ChatGPT answers, two runs each. Human answers also give bigger graphs (14 vs 10.5 pieces with V).</p>
+<aside>This is a fairness warning for the research question: the extractor itself may read LLM text more easily. Voting narrows the gap but does not close it.</aside>
+</section>

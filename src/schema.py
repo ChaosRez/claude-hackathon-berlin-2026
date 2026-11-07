@@ -59,6 +59,20 @@ class Schema:
         }
 
 
+    def segment_json_schema(self) -> dict:
+        """Output of the split step: the answer's pieces, in order, copied exactly."""
+        return {"type": "object", "properties": {"segments": {"type": "array", "items": {"type": "string"}}},
+                "required": ["segments"], "additionalProperties": False}
+
+    def label_json_schema(self) -> dict:
+        """Output of the label step: nodes without text (the pieces are given), edges, implicit_main."""
+        full = self.output_json_schema()
+        node = {**full["properties"]["nodes"]["items"]}
+        node["properties"] = {k: v for k, v in node["properties"].items() if k != "text"}
+        node["required"] = [k for k in node["required"] if k != "text"]
+        return {**full, "properties": {**full["properties"], "nodes": {"type": "array", "items": node}}}
+
+
 def load_schema(entities_path: Path = DEFAULT_ENTITIES, relations_path: Path = DEFAULT_RELATIONS) -> Schema:
     entity_text = Path(entities_path).read_text()
     relation_text = Path(relations_path).read_text()

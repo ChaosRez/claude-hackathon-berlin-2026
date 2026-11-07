@@ -3,6 +3,12 @@
 Usage:
   uv run python -m src.extract --limit 2
   uv run python -m src.extract --pairs 0,5,9 --sources human
+  uv run python -m src.extract --limit 2 --approach one-pass
+
+Approaches (chosen in docs/adr/0001-extraction-approach.md):
+  voted     (default) split the answer once, label the fixed pieces --votes times,
+            then keep the majority types and the primary-edge tree with the most votes.
+  one-pass  split, type and link in one call (prompts/extract_v2.md).
 
 Writes to results/extraction/<run_id>/:
   graphs/<id>.yaml   one file per answer: nodes (entities), edges (relations), check result
@@ -27,7 +33,8 @@ from pathlib import Path
 import yaml
 
 from src.schema import DEFAULT_ENTITIES, DEFAULT_RELATIONS, ROOT, Schema, load_schema, write_yaml
-from src.validate import validate
+from src.validate import coverage_errors, validate
+from src.voting import aggregate
 
 SOURCES = {"human": "human_answers", "chatgpt": "chatgpt_answers"}
 # CLAUDE.md: until GUIDE.md is final, don't run the extractor on the full dataset.
@@ -125,11 +132,17 @@ BACKENDS = {"api": call_api, "cli": call_cli}
 # --------------------------------------------------------------------------- one text
 
 
-def extract_one(item: dict, system: str, schema: Schema, json_schema: dict, args) -> dict:
+def new_record(item: dict, approach: str) -> dict:
+    return {**item, "approach": approach, "status": "error", "attempts": [], "nodes": [], "edges": [],
+            "implicit_main": False, "errors": [], "diagnostics": {}}
+
+
+def extract_one_pass(item: dict, prompts: dict, schema: Schema, args) -> dict:
+    """Split, type and link in one call; retry with the validator's errors."""
     call = BACKENDS[args.backend]
+    system, json_schema = prompts["one-pass"], schema.output_json_schema()
     user = build_user_prompt(item["question"], item["answer"])
-    record = {**item, "status": "error", "attempts": [], "nodes": [], "edges": [],
-              "implicit_main": False, "errors": []}
+    record = new_record(item, "one-pass")
     prompt = user
     for attempt in range(args.retries + 1):
         try:
@@ -147,6 +160,68 @@ def extract_one(item: dict, system: str, schema: Schema, json_schema: dict, args
             break
         prompt = retry_prompt(user, out, errors)
     return record
+
+
+def pieces_prompt(item: dict, segments: list[str]) -> str:
+    numbered = "\n".join(f"{i}. {s}" for i, s in enumerate(segments, 1))
+    return build_user_prompt(item["question"], item["answer"]) + f"\n\n<pieces>\n{numbered}\n</pieces>"
+
+
+def split(item: dict, prompts: dict, schema: Schema, args, record: dict) -> list[str] | None:
+    """Stage 1: cut the answer into pieces once; retry with the coverage errors."""
+    call = BACKENDS[args.backend]
+    user = build_user_prompt(item["question"], item["answer"])
+    prompt = user
+    for attempt in range(args.retries + 1):
+        try:
+            out, meta = call(prompts["split"], prompt, schema.segment_json_schema(), args.model, args.effort)
+        except Exception as exc:  # recorded, never dropped
+            record["attempts"].append({"step": "split", "attempt": attempt, "error": f"{type(exc).__name__}: {exc}"})
+            record["errors"] = [f"split failed: {type(exc).__name__}: {exc}"]
+            continue
+        segs = out["segments"]
+        errors = coverage_errors(item["answer"], segs) + (["empty piece"] if any(not x.strip() for x in segs) else [])
+        record["attempts"].append({"step": "split", "attempt": attempt, **meta, "errors": errors})
+        if not errors:
+            return segs
+        record["errors"] = [f"split: {e}" for e in errors]
+        prompt = (f"{user}\n\nYour previous split broke these rules:\n" + "\n".join(f"- {e}" for e in errors)
+                  + f"\n\nPrevious split:\n{json.dumps(segs, ensure_ascii=False)}\n\nSplit the whole answer again.")
+    return None
+
+
+def extract_voted(item: dict, prompts: dict, schema: Schema, args) -> dict:
+    """Split once, label the fixed pieces args.votes times, and combine the votes."""
+    call = BACKENDS[args.backend]
+    record = new_record(item, "voted")
+    segs = split(item, prompts, schema, args, record)
+    if segs is None:
+        return record
+    user = pieces_prompt(item, segs)
+    samples = []
+    for vote in range(args.votes):
+        try:
+            out, meta = call(prompts["label"], user, schema.label_json_schema(), args.model, args.effort)
+        except Exception as exc:  # recorded, never dropped
+            record["attempts"].append({"step": "label", "vote": vote, "error": f"{type(exc).__name__}: {exc}"})
+            continue
+        nodes = [{**x, "text": segs[x["id"] - 1] if 1 <= x["id"] <= len(segs) else ""} for x in out["nodes"]]
+        sample = {"nodes": nodes, "edges": out["edges"], "implicit_main": out["implicit_main"]}
+        errors = validate(sample, item["answer"], schema)
+        record["attempts"].append({"step": "label", "vote": vote, **meta, "errors": errors})
+        samples.append(sample)
+    if not samples:
+        record["errors"] = ["no label sample returned"]
+        return record
+    graph, diag = aggregate(samples, segs, schema)
+    diag["samples_valid"] = sum(not a.get("errors") for a in record["attempts"] if a.get("step") == "label" and "error" not in a)
+    errors = validate(graph, item["answer"], schema)
+    record.update(nodes=graph["nodes"], edges=graph["edges"], implicit_main=graph["implicit_main"],
+                  errors=errors, diagnostics=diag, status="valid" if not errors else "invalid")
+    return record
+
+
+EXTRACTORS = {"voted": extract_voted, "one-pass": extract_one_pass}
 
 
 # --------------------------------------------------------------------------- run
@@ -168,8 +243,8 @@ def sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:12]
 
 
-GRAPH_KEYS = ["id", "pair", "source", "question", "status", "errors", "implicit_main",
-              "nodes", "edges", "answer", "attempts"]
+GRAPH_KEYS = ["id", "pair", "source", "question", "approach", "status", "errors", "implicit_main",
+              "nodes", "edges", "diagnostics", "answer", "attempts"]
 ENTITY_KEYS = ["id", "type", "main", "hedged", "kind", "note", "text"]
 
 
@@ -192,11 +267,15 @@ def main() -> None:
     p.add_argument("--sources", default="human,chatgpt")
     p.add_argument("--entities", type=Path, default=DEFAULT_ENTITIES)
     p.add_argument("--relations", type=Path, default=DEFAULT_RELATIONS)
-    p.add_argument("--prompt", type=Path, default=ROOT / "prompts" / "extract_v2.md")
+    p.add_argument("--approach", choices=list(EXTRACTORS), default="voted")
+    p.add_argument("--votes", type=int, default=5, help="label samples per answer (voted approach)")
+    p.add_argument("--prompt", type=Path, default=ROOT / "prompts" / "extract_v2.md", help="one-pass prompt")
+    p.add_argument("--split-prompt", type=Path, default=ROOT / "prompts" / "segment_v1.md")
+    p.add_argument("--label-prompt", type=Path, default=ROOT / "prompts" / "label_v1.md")
     p.add_argument("--backend", choices=["auto", "api", "cli"], default="auto")
     p.add_argument("--model", default="claude-opus-5-5")
     p.add_argument("--effort", default="high", choices=["low", "medium", "high", "xhigh", "max"])
-    p.add_argument("--retries", type=int, default=1, help="re-asks when the output breaks a rule")
+    p.add_argument("--retries", type=int, default=1, help="re-asks when a split or one-pass output breaks a rule")
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--out", type=Path, help="output dir (default results/extraction/<timestamp>)")
     args = p.parse_args()
@@ -221,31 +300,35 @@ def main() -> None:
         sys.exit(f"unknown sources {bad}")
 
     schema = load_schema(args.entities, args.relations)
-    system = build_system_prompt(args.prompt, schema)
-    json_schema = schema.output_json_schema()
+    prompts = {"one-pass": build_system_prompt(args.prompt, schema),
+               "split": build_system_prompt(args.split_prompt, schema),
+               "label": build_system_prompt(args.label_prompt, schema)}
+    extract = EXTRACTORS[args.approach]
     items = load_items(args.data, pair_ids, sources)
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out_dir = args.out or ROOT / "results" / "extraction" / run_id
     (out_dir / "graphs").mkdir(parents=True, exist_ok=True)
-    print(f"Extracting {len(items)} texts with {args.backend}/{args.model} -> {out_dir}")
+    print(f"Extracting {len(items)} texts ({args.approach}) with {args.backend}/{args.model} -> {out_dir}")
 
     records = []
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {pool.submit(extract_one, it, system, schema, json_schema, args): it for it in items}
+        futures = {pool.submit(extract, it, prompts, schema, args): it for it in items}
         for fut in as_completed(futures):
             rec = fut.result()
             records.append(rec)
             write_yaml(out_dir / "graphs" / f"{rec['id']}.yaml", graph_document(rec))
             print(f"  {rec['id']}: {rec['status']} ({len(rec['nodes'])} nodes, "
-                  f"{len(rec['edges'])} edges, {len(rec['attempts'])} attempt(s))")
+                  f"{len(rec['edges'])} edges, {len(rec['attempts'])} call(s))")
     records.sort(key=lambda r: r["id"])
 
     counts = {s: sum(r["status"] == s for r in records) for s in ("valid", "invalid", "error")}
     manifest = {
-        "run_id": run_id, "backend": args.backend, "model": args.model, "effort": args.effort,
+        "run_id": run_id, "approach": args.approach, "votes": args.votes if args.approach == "voted" else None,
+        "backend": args.backend, "model": args.model, "effort": args.effort,
         "retries": args.retries, "data": str(args.data), "pairs": pair_ids, "sources": sources,
-        "prompt": {"path": str(args.prompt), "sha256_12": sha(args.prompt)},
+        "prompts": {str(q.relative_to(ROOT)): sha(q) for q in
+                    ([args.split_prompt, args.label_prompt] if args.approach == "voted" else [args.prompt])},
         "entity_schema": {"path": str(args.entities), "sha256_12": sha(args.entities)},
         "relation_schema": {"path": str(args.relations), "sha256_12": sha(args.relations)},
         "guide_final": guide_is_final(), "texts": len(records), "counts": counts,

@@ -1,0 +1,823 @@
+microtexts_accuracy:
+  A:
+    status:
+      valid: 20
+    main_claim:
+      value: 0.95
+      ci95:
+      - 0.85
+      - 1.0
+      n: 20
+    attachment:
+      value: 0.783
+      ci95:
+      - 0.686
+      - 0.872
+      n: 83
+    labelled_attachment:
+      value: 0.783
+      ci95:
+      - 0.686
+      - 0.872
+      n: 83
+    opponent_f1: 0.8
+  A-son:
+    status:
+      valid: 20
+    main_claim:
+      value: 0.95
+      ci95:
+      - 0.85
+      - 1.0
+      n: 20
+    attachment:
+      value: 0.783
+      ci95:
+      - 0.696
+      - 0.86
+      n: 83
+    labelled_attachment:
+      value: 0.759
+      ci95:
+      - 0.671
+      - 0.841
+      n: 83
+    opponent_f1: 0.75
+  S:
+    status:
+      valid: 20
+    main_claim:
+      value: 0.95
+      ci95:
+      - 0.85
+      - 1.0
+      n: 20
+    attachment:
+      value: 0.831
+      ci95:
+      - 0.734
+      - 0.914
+      n: 83
+    labelled_attachment:
+      value: 0.831
+      ci95:
+      - 0.734
+      - 0.914
+      n: 83
+    opponent_f1: 0.8
+  V:
+    status:
+      valid: 20
+    main_claim:
+      value: 0.95
+      ci95:
+      - 0.85
+      - 1.0
+      n: 20
+    attachment:
+      value: 0.831
+      ci95:
+      - 0.734
+      - 0.914
+      n: 83
+    labelled_attachment:
+      value: 0.831
+      ci95:
+      - 0.734
+      - 0.914
+      n: 83
+    opponent_f1: 0.8
+  P:
+    status:
+      valid: 20
+    main_claim:
+      value: 0.95
+      ci95:
+      - 0.85
+      - 1.0
+      n: 20
+    attachment:
+      value: 0.831
+      ci95:
+      - 0.738
+      - 0.906
+      n: 83
+    labelled_attachment:
+      value: 0.831
+      ci95:
+      - 0.738
+      - 0.906
+      n: 83
+    opponent_f1: 0.824
+  B1:
+    status:
+      valid: 20
+    main_claim:
+      value: 0.95
+      ci95:
+      - 0.85
+      - 1.0
+      n: 20
+    attachment:
+      value: 0.47
+      ci95:
+      - 0.393
+      - 0.544
+      n: 83
+    labelled_attachment:
+      value: 0.205
+      ci95:
+      - 0.136
+      - 0.275
+      n: 83
+    opponent_f1: 0.0
+  B2:
+    status:
+      valid: 20
+    main_claim:
+      value: 0.95
+      ci95:
+      - 0.85
+      - 1.0
+      n: 20
+    attachment:
+      value: 0.651
+      ci95:
+      - 0.549
+      - 0.75
+      n: 83
+    labelled_attachment:
+      value: 0.47
+      ci95:
+      - 0.383
+      - 0.549
+      n: 83
+    opponent_f1: 0.0
+microtexts_cost_per_text_usd:
+  A: 0.023
+  A-son: 0.009
+  S: 0.016
+  V: 0.066
+  P: 0.019
+hc3:
+  A:
+    all:
+      texts: 20
+      runs: 40
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 40
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      type_agreement:
+        value: 0.906
+        ci95:
+        - 0.843
+        - 0.953
+        n: 235
+      type_kappa: 0.891
+      attach_agreement:
+        value: 0.915
+        ci95:
+        - 0.874
+        - 0.954
+        n: 212
+      edge_jaccard:
+        value: 0.713
+        ci95:
+        - 0.636
+        - 0.789
+      cost_per_text_usd: 0.043
+      nodes_per_text: 11.725
+      edges_per_text: 11.225
+      tree_depth: 3.175
+      counterpoint_share: 0.062
+    human:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.918
+        ci95:
+        - 0.881
+        - 0.961
+        n: 134
+      type_kappa: 0.902
+      attach_agreement:
+        value: 0.902
+        ci95:
+        - 0.84
+        - 0.96
+        n: 123
+      edge_jaccard:
+        value: 0.702
+        ci95:
+        - 0.599
+        - 0.796
+      cost_per_text_usd: 0.049
+      nodes_per_text: 13.5
+      edges_per_text: 13.05
+      tree_depth: 3.65
+      counterpoint_share: 0.086
+    chatgpt:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.891
+        ci95:
+        - 0.753
+        - 0.979
+        n: 101
+      type_kappa: 0.87
+      attach_agreement:
+        value: 0.933
+        ci95:
+        - 0.875
+        - 0.98
+        n: 89
+      edge_jaccard:
+        value: 0.724
+        ci95:
+        - 0.607
+        - 0.84
+      cost_per_text_usd: 0.037
+      nodes_per_text: 9.95
+      edges_per_text: 9.4
+      tree_depth: 2.7
+      counterpoint_share: 0.038
+  A-son:
+    all:
+      texts: 20
+      runs: 40
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 40
+      main_agreement:
+        value: 0.95
+        ci95:
+        - 0.85
+        - 1.0
+        n: 20
+      type_agreement:
+        value: 0.922
+        ci95:
+        - 0.878
+        - 0.962
+        n: 205
+      type_kappa: 0.908
+      attach_agreement:
+        value: 0.858
+        ci95:
+        - 0.789
+        - 0.92
+        n: 183
+      edge_jaccard:
+        value: 0.687
+        ci95:
+        - 0.569
+        - 0.802
+      cost_per_text_usd: 0.015
+      nodes_per_text: 10.325
+      edges_per_text: 9.625
+      tree_depth: 2.775
+      counterpoint_share: 0.044
+    human:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 0.9
+        ci95:
+        - 0.7
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.908
+        ci95:
+        - 0.851
+        - 0.954
+        n: 109
+      type_kappa: 0.89
+      attach_agreement:
+        value: 0.857
+        ci95:
+        - 0.758
+        - 0.94
+        n: 98
+      edge_jaccard:
+        value: 0.562
+        ci95:
+        - 0.415
+        - 0.715
+      cost_per_text_usd: 0.017
+      nodes_per_text: 11.0
+      edges_per_text: 10.25
+      tree_depth: 3.15
+      counterpoint_share: 0.06
+    chatgpt:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.938
+        ci95:
+        - 0.871
+        - 1.0
+        n: 96
+      type_kappa: 0.924
+      attach_agreement:
+        value: 0.859
+        ci95:
+        - 0.747
+        - 0.955
+        n: 85
+      edge_jaccard:
+        value: 0.811
+        ci95:
+        - 0.649
+        - 0.951
+      cost_per_text_usd: 0.013
+      nodes_per_text: 9.65
+      edges_per_text: 9.0
+      tree_depth: 2.4
+      counterpoint_share: 0.028
+  S:
+    all:
+      texts: 20
+      runs: 40
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 40
+      main_agreement:
+        value: 0.95
+        ci95:
+        - 0.85
+        - 1.0
+        n: 20
+      type_agreement:
+        value: 0.927
+        ci95:
+        - 0.899
+        - 0.959
+        n: 245
+      type_kappa: 0.914
+      attach_agreement:
+        value: 0.937
+        ci95:
+        - 0.893
+        - 0.971
+        n: 221
+      edge_jaccard:
+        value: 0.72
+        ci95:
+        - 0.655
+        - 0.79
+      cost_per_text_usd: 0.047
+      nodes_per_text: 12.25
+      edges_per_text: 11.975
+      tree_depth: 3.225
+      counterpoint_share: 0.055
+    human:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 0.9
+        ci95:
+        - 0.7
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.886
+        ci95:
+        - 0.86
+        - 0.917
+        n: 140
+      type_kappa: 0.862
+      attach_agreement:
+        value: 0.938
+        ci95:
+        - 0.895
+        - 0.973
+        n: 128
+      edge_jaccard:
+        value: 0.662
+        ci95:
+        - 0.582
+        - 0.765
+      cost_per_text_usd: 0.054
+      nodes_per_text: 14.0
+      edges_per_text: 13.8
+      tree_depth: 3.6
+      counterpoint_share: 0.069
+    chatgpt:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.981
+        ci95:
+        - 0.95
+        - 1.0
+        n: 105
+      type_kappa: 0.977
+      attach_agreement:
+        value: 0.935
+        ci95:
+        - 0.853
+        - 1.0
+        n: 93
+      edge_jaccard:
+        value: 0.777
+        ci95:
+        - 0.693
+        - 0.863
+      cost_per_text_usd: 0.041
+      nodes_per_text: 10.5
+      edges_per_text: 10.15
+      tree_depth: 2.85
+      counterpoint_share: 0.04
+  V:
+    all:
+      texts: 20
+      runs: 40
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 40
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      type_agreement:
+        value: 0.959
+        ci95:
+        - 0.937
+        - 0.981
+        n: 245
+      type_kappa: 0.952
+      attach_agreement:
+        value: 0.973
+        ci95:
+        - 0.946
+        - 0.995
+        n: 221
+      edge_jaccard:
+        value: 0.891
+        ci95:
+        - 0.835
+        - 0.942
+      cost_per_text_usd: 0.167
+      nodes_per_text: 12.25
+      edges_per_text: 11.85
+      tree_depth: 3.275
+      counterpoint_share: 0.062
+    human:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.936
+        ci95:
+        - 0.907
+        - 0.964
+        n: 140
+      type_kappa: 0.922
+      attach_agreement:
+        value: 0.969
+        ci95:
+        - 0.935
+        - 1.0
+        n: 128
+      edge_jaccard:
+        value: 0.854
+        ci95:
+        - 0.781
+        - 0.921
+      cost_per_text_usd: 0.197
+      nodes_per_text: 14.0
+      edges_per_text: 13.8
+      tree_depth: 3.85
+      counterpoint_share: 0.071
+    chatgpt:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.99
+        ci95:
+        - 0.968
+        - 1.0
+        n: 105
+      type_kappa: 0.989
+      attach_agreement:
+        value: 0.978
+        ci95:
+        - 0.936
+        - 1.0
+        n: 93
+      edge_jaccard:
+        value: 0.928
+        ci95:
+        - 0.847
+        - 1.0
+      cost_per_text_usd: 0.137
+      nodes_per_text: 10.5
+      edges_per_text: 9.9
+      tree_depth: 2.7
+      counterpoint_share: 0.053
+  P:
+    all:
+      texts: 20
+      runs: 40
+      valid:
+        value: 0.95
+        ci95:
+        - 0.875
+        - 1.0
+        n: 40
+      main_agreement:
+        value: 0.95
+        ci95:
+        - 0.85
+        - 1.0
+        n: 20
+      type_agreement:
+        value: 0.955
+        ci95:
+        - 0.925
+        - 0.982
+        n: 245
+      type_kappa: 0.948
+      attach_agreement:
+        value: 0.913
+        ci95:
+        - 0.877
+        - 0.947
+        n: 218
+      edge_jaccard:
+        value: 0.793
+        ci95:
+        - 0.735
+        - 0.85
+      cost_per_text_usd: 0.048
+      nodes_per_text: 12.25
+      edges_per_text: 12.275
+      tree_depth: 3.175
+      counterpoint_share: 0.066
+    human:
+      texts: 10
+      runs: 20
+      valid:
+        value: 0.9
+        ci95:
+        - 0.75
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 0.9
+        ci95:
+        - 0.7
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.971
+        ci95:
+        - 0.942
+        - 1.0
+        n: 140
+      type_kappa: 0.966
+      attach_agreement:
+        value: 0.897
+        ci95:
+        - 0.853
+        - 0.938
+        n: 126
+      edge_jaccard:
+        value: 0.729
+        ci95:
+        - 0.661
+        - 0.802
+      cost_per_text_usd: 0.055
+      nodes_per_text: 14.0
+      edges_per_text: 14.05
+      tree_depth: 3.7
+      counterpoint_share: 0.066
+    chatgpt:
+      texts: 10
+      runs: 20
+      valid:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 20
+      main_agreement:
+        value: 1.0
+        ci95:
+        - 1.0
+        - 1.0
+        n: 10
+      type_agreement:
+        value: 0.933
+        ci95:
+        - 0.884
+        - 0.98
+        n: 105
+      type_kappa: 0.921
+      attach_agreement:
+        value: 0.935
+        ci95:
+        - 0.882
+        - 0.987
+        n: 92
+      edge_jaccard:
+        value: 0.856
+        ci95:
+        - 0.778
+        - 0.927
+      cost_per_text_usd: 0.042
+      nodes_per_text: 10.5
+      edges_per_text: 10.5
+      tree_depth: 2.65
+      counterpoint_share: 0.065
+paired:
+- a: S
+  b: A
+  metric: attach_correct
+  mean_diff: 0.047
+  ci95:
+  - -0.013
+  - 0.109
+  n_texts: 20
+- a: V
+  b: S
+  metric: attach_correct
+  mean_diff: 0.0
+  ci95:
+  - 0.0
+  - 0.0
+  n_texts: 20
+- a: P
+  b: S
+  metric: attach_correct
+  mean_diff: 0.0
+  ci95:
+  - -0.037
+  - 0.037
+  n_texts: 20
+- a: A
+  b: A-son
+  metric: attach_correct
+  mean_diff: 0.003
+  ci95:
+  - -0.083
+  - 0.083
+  n_texts: 20
+- a: S
+  b: B2
+  metric: attach_correct
+  mean_diff: 0.182
+  ci95:
+  - 0.045
+  - 0.307
+  n_texts: 20
+- a: V
+  b: S
+  metric: edge_jaccard
+  mean_diff: 0.171
+  ci95:
+  - 0.111
+  - 0.234
+  n_texts: 20
+- a: P
+  b: S
+  metric: edge_jaccard
+  mean_diff: 0.073
+  ci95:
+  - -0.012
+  - 0.152
+  n_texts: 20
+- a: S
+  b: A
+  metric: edge_jaccard
+  mean_diff: 0.007
+  ci95:
+  - -0.062
+  - 0.083
+  n_texts: 20
+- a: A
+  b: A-son
+  metric: edge_jaccard
+  mean_diff: 0.026
+  ci95:
+  - -0.119
+  - 0.169
+  n_texts: 20
+- a: V
+  b: S
+  metric: attach_agree
+  mean_diff: 0.038
+  ci95:
+  - 0.015
+  - 0.063
+  n_texts: 20
+notes:
+- Intervals are 95% percentile bootstrap over texts (2000 resamples, seed 2026).
+- Errored and invalid runs stay in every denominator.
+- 'HC3 has no hand labels: HC3 numbers are stability, validity, cost and shape, not accuracy.'
+- Baselines B1/B2 use the main claim chosen by S.

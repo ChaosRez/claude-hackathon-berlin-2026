@@ -1,0 +1,17 @@
+{
+  "v": 4,
+  "createdOnFiles": {"v": 1, "at": "2026-11-07T17:30:00Z"},
+  "lists": "css",
+  "title": "Extraction approach study",
+  "order": ["cover", "question", "approaches", "setup", "accuracy", "stability", "cost", "noise", "fairness", "decision", "limits", "next"],
+  "sections": {
+    "intro": {"description": "What we compared and how we measured it.", "start": "cover"},
+    "results": {"description": "Accuracy, stability, cost and what the noise is.", "start": "accuracy"},
+    "decision": {"description": "The chosen approach, its limits and next steps.", "start": "decision"}
+  },
+  "faces": {
+    "space-grotesk": {"family": "Space Grotesk", "href": "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400..700&display=swap"},
+    "inter": {"family": "Inter", "href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"}
+  },
+  "designSystems": []
+}
