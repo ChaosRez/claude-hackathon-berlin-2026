@@ -241,6 +241,15 @@ Install [uv](https://docs.astral.sh/uv/), then install the dependencies:
 uv sync
 ```
 
+Copy `.env.example` to `.env`:
+
+```bash
+cp .env.example .env
+```
+
+Then put your Anthropic API key in `.env`.
+Git ignores `.env`, so your key stays local.
+
 To get the data:
 
 ```bash
