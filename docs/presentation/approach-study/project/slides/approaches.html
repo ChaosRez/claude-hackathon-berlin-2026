@@ -1,0 +1,15 @@
+<section id="approaches" data-transition="fade" style="background:#F6F5F1;color:#1B2430;font-family:Inter, Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:72px;font-weight:600;line-height:1.1">Five ways of asking Claude, two simple rules</h2>
+<table style="font-size:30px;color:#1B2430">
+<tr><th style="width:12%">Code</th><th style="width:66%">What it does</th><th style="width:22%">Calls per answer</th></tr>
+<tr><td>A</td><td>One pass: split, type and link in one call</td><td>1</td></tr>
+<tr><td>A-son</td><td>The same with the cheaper Sonnet model</td><td>1</td></tr>
+<tr><td>S</td><td>Split once, then type and link the fixed pieces</td><td>1 + 1</td></tr>
+<tr style="background:#FCE9DF"><td>V</td><td>Split once, then type and link 5 times and vote</td><td>1 + 5</td></tr>
+<tr><td>P</td><td>Split, then type, then link: three calls</td><td>1 + 2</td></tr>
+<tr><td>B1</td><td>Rule: each piece points to the one before it</td><td>0</td></tr>
+<tr><td>B2</td><td>Rule: each piece points to the main claim</td><td>0</td></tr>
+</table>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#5B6675">All use entity_definition.yaml and relation.yaml, Opus 5.5 at high effort unless noted.</p>
+<aside>V votes like this: majority type per piece, majority main claim, and the parent tree with the most votes (a maximum spanning arborescence). B1 and B2 use no model at all; they show what a trivial rule scores.</aside>
+</section>

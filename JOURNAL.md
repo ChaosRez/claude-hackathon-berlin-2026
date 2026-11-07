@@ -70,3 +70,21 @@ Append-only ledger of research hypotheses, decisions, experiment runs, and evide
   Correction to Entry 3: networkx now imports on the project's Python (3.15.1 in `.venv`), so `measure.py` and its tests no longer need Python 3.13.
   The run folders cited in Entries 1 and 3 (`results/extraction/20261107T150706Z/`, `results/extraction/20261107T151902Z/`) are not in the repository, so those results cannot be checked from it.
 - **Next Steps**: The team decides on `implicit_main` and on adding `answer` to `GUIDE.md` section 8; whoever has the run folders commits them (CC BY-SA 4.0, see `LICENSE-data`).
+
+### Entry 5 — 2026-11-07
+- **Hypothesis / Question**: Which way of asking Claude for a reasoning graph is most accurate and most stable: one pass, split then label, split then vote (5 samples), or step by step?
+- **Action / Experiment**: Approach study, plan in `experiments/approach_study/PLAN.md`.
+  5 approaches and 2 rule baselines on 20 arg-microtexts with hand-made graphs (accuracy; CC BY-NC-SA 4.0, kept local) and on 20 HC3 answers (10 pairs, seed 2026), each approach run twice (stability).
+  300 tasks, $13.82 in API calls; scripts `run_study.py`, `analyze.py`, `audit.py`, `examples.py`.
+- **Evidence**: `experiments/approach_study/FINDINGS.md`, `experiments/approach_study/results/summary.yaml`, `results/per_text.csv`.
+- **Findings & Honesty**: No approach is measurably more accurate (0.78–0.83 right parents; all paired intervals include 0); all beat the rule baselines (0.47–0.65).
+  Only voting is clearly more stable: edge overlap between runs 0.89 vs 0.72 for one call (paired +0.17, 95% interval +0.11 to +0.23).
+  Confounds stated in FINDINGS: one-pass splits on its own, while the others reuse one saved or hand-made split.
+  298 of 300 graphs valid; the 2 invalid (step-by-step, one human answer) stay in all denominators.
+  Read 3 least-stable examples: disagreements are real ambiguity (`supports` vs `elaborates`, choice of main conclusion), not parsing.
+  Every approach is less stable on human answers than on ChatGPT answers.
+  No HC3 accuracy: there are still no hand labels.
+- **Decision**: `docs/adr/0001-extraction-approach.md`: split once, then 5 votes (`--approach voted`, now the default).
+  Smoke test of the new default on pair 0: 2 of 2 valid.
+  `networkx` imports on Python 3.14.10; the earlier failure was specific to Python 3.14.1.
+- **Next Steps**: Hand labels on the saved splits (Task 7); team decision on `supports` vs `elaborates` for list items.

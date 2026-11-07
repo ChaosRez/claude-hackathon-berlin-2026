@@ -1,0 +1,14 @@
+<section id="cost" data-transition="fade" style="background:#F6F5F1;color:#1B2430;font-family:Inter, Arial, sans-serif;padding:128px 128px 160px;display:flex;flex-direction:column;gap:48px">
+<h2 style="font-family:'Space Grotesk', Arial, sans-serif;font-size:72px;font-weight:600;line-height:1.1">Cost: voting pays 3.5 times more for steadier graphs</h2>
+<table style="font-size:30px;color:#1B2430">
+<tr><th style="width:22%">Approach</th><th style="width:20%">$ per HC3 answer</th><th style="width:20%">Right parent (microtexts)</th><th style="width:20%">Edge overlap (2 runs)</th><th style="width:18%">Valid runs</th></tr>
+<tr><td>A</td><td>0.04</td><td>0.78</td><td>0.71</td><td>40 / 40</td></tr>
+<tr><td>A-son</td><td>0.015</td><td>0.78</td><td>0.69</td><td>40 / 40</td></tr>
+<tr><td>S</td><td>0.05</td><td>0.83</td><td>0.72</td><td>40 / 40</td></tr>
+<tr style="background:#FCE9DF"><td>V (chosen)</td><td>0.17</td><td>0.83</td><td>0.89</td><td>40 / 40</td></tr>
+<tr><td>P</td><td>0.05</td><td>0.83</td><td>0.79</td><td>38 / 40</td></tr>
+</table>
+<p style="font-size:32px;color:#4A5568;line-height:1.4">All 100 pairs with V: about <b>$34</b>. Sonnet is a third of the price at the same one-pass accuracy, but splits less consistently.</p>
+<p style="position:absolute;left:128px;bottom:64px;width:1664px;font-size:24px;color:#5B6675">Costs include each approach’s share of the split call. Whole study: $13.82.</p>
+<aside>P failed validation on one human answer in both runs: the type step made a piece a claim that the link step then left without an edge. Those runs stay in the counts.</aside>
+</section>
