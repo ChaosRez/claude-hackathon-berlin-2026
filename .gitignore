@@ -55,5 +55,5 @@ htmlcov/
 *~
 
 
-# Raw HC3 download (rebuild with scripts/get_data.py)
-data/finance.jsonl
+# HC3 data (rebuild with scripts/get_data.py)
+data/*.jsonl
