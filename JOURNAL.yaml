@@ -1,0 +1,246 @@
+version: 0.2
+status: merged_framework
+
+objective:
+  title: Human vs. ChatGPT reasoning graph comparison
+  goal: >
+    Compare how humans and ChatGPT construct reasoning graphs in financial analysis,
+    focusing not only on answer correctness but on the structure, depth, revision,
+    and dialectical quality of the reasoning process.
+  principle: >
+    A final answer is only one visible outcome; the reasoning graph reveals the
+    underlying process, including evidence chains, support relations, counterarguments,
+    qualifications, and convergence or revision patterns.
+
+research_questions:
+  - Does human reasoning contain more layered support, qualifications, and counterarguments than ChatGPT reasoning?
+  - Are ChatGPT responses more centralized, linear, and convergent than human reasoning?
+  - Do humans preserve deeper evidence chains and more iterative revision under uncertainty?
+  - Do structural differences exceed the natural Human-vs-Human baseline?
+  - Are unsupported claims, hollow conclusions, or circular reasoning patterns meaningful signals of reasoning quality?
+
+core_hypotheses:
+  - ChatGPT reasoning is often more linear and single-directional, with stronger convergence around a central claim.
+  - Human reasoning usually contains more qualifications, attacks, layered support, and revision loops.
+  - Valuable reasoning in finance is not just the final conclusion, but the ability to build multi-branch argumentation under uncertainty.
+  - A Human-vs-Human baseline is required to separate genuine model differences from natural annotation variance.
+  - Structural stability and evidence depth matter more than surface wording similarity.
+
+framework:
+  conceptual_layer:
+    purpose: >
+      Explain what the comparison is about: structure, dynamics, and reasoning quality.
+    focus:
+      - structural differences
+      - topological differences
+      - dynamic logical differences
+      - representation-evolution differences
+      - evidence chain quality
+      - revision and correction behavior
+
+  measurement_layer:
+    purpose: >
+      Standardize the comparison so every graph is scored with the same rules.
+    focus:
+      - node and edge construction
+      - graph validity checks
+      - graph topology measures
+      - baseline comparison
+      - significance testing
+      - required reporting
+
+  interpretation_layer:
+    purpose: >
+      Translate raw measurement into meaningful claims about reasoning behavior.
+    rule: >
+      Differences within the Human-vs-Human baseline are treated as natural variation;
+      differences beyond the baseline are treated as meaningful reasoning divergence.
+
+graph_definition:
+  node_types:
+    description: >
+      Nodes are reasoning units such as facts, claims, events, companies, indicators,
+      assumptions, conditions, or conclusions.
+    examples:
+      - fact
+      - event
+      - company
+      - claim
+      - qualification
+      - conclusion
+
+  edge_types:
+    description: >
+      Edges are relations between reasoning units such as support, attack, qualify,
+      conclude, compare, or causal relations.
+    examples:
+      - supports
+      - attacks
+      - qualifies
+      - concludes
+      - causes
+      - compares
+      - predicts
+
+  filler:
+    definition: >
+      Filler is a special node type that carries no substantive reasoning content.
+    handling:
+      - excluded from most graph measures
+      - counted separately as n_filler
+      - edges touching filler are invalid
+
+  graphs:
+    full_graph:
+      definition: All nodes and all edges.
+    primary_tree:
+      definition: >
+        All nodes and only edges with primary: true; this should be a tree rooted at the
+        main claim.
+    path_length:
+      definition: Counted in edges, not nodes; a single node has length 0.
+
+  validity_rules:
+    - Graphs failing the checks in src/measure.py are counted as invalid graphs.
+    - Invalid graphs are listed and never silently dropped.
+    - Their measures are excluded from averages.
+    - Edges touching filler must not exist.
+
+measures:
+  size:
+    n_nodes:
+      definition: Number of nodes excluding filler.
+      graph: full_graph
+      question: How many reasoning units does the answer have?
+    n_edges:
+      definition: Number of edges.
+      graph: full_graph
+      question: How many links connect the reasoning units?
+    n_filler:
+      definition: Number of filler entities.
+      graph: none
+      question: How much of the answer says nothing about the topic?
+    edges_per_node:
+      definition: n_edges / n_nodes.
+      graph: full_graph
+      question: How interlinked is the reasoning?
+    extra_edge_share:
+      definition: Share of edges that are not primary.
+      graph: full_graph
+      question: How much structure would a tree throw away?
+
+  shape:
+    longest_path:
+      definition: >
+        Number of edges in the longest directed path anywhere in the graph; if a cycle exists,
+        the graph is condensed by merging each cycle into one node.
+      graph: full_graph
+      question: How long is the longest chain of reasoning?
+    depth:
+      definition: Number of edges in the longest path from any node to the main claim.
+      graph: primary_tree
+      question: How deep is the support for the main answer?
+    n_leaves:
+      definition: Nodes with no incoming edges.
+      graph: full_graph
+      question: How many points are left without further support or reply?
+    main_in_degree:
+      definition: Number of edges pointing directly to the main claim.
+      graph: full_graph
+      question: Is the answer flat or layered?
+    mean_branching:
+      definition: Average in-degree over nodes with at least one incoming edge.
+      graph: full_graph
+      question: When a point gets support, how many pieces does it get?
+    has_cycle:
+      definition: 1 if a directed cycle exists, else 0.
+      graph: full_graph
+      question: Does the reasoning circle back on itself?
+    main_position:
+      definition: >
+        Position of the main claim among non-filler entities in text order: 0 = first,
+        1 = last. Empty if there is only one node.
+      graph: none
+      question: Does the writer answer up front or build toward the answer?
+
+  dialectic:
+    n_attacks:
+      definition: Number of attacks edges.
+      graph: full_graph
+      question: How often is the other side raised?
+    answered_attack_share:
+      definition: >
+        Share of counterpoint nodes that receive at least one refutes edge. Empty if there
+        are no counterpoints.
+      graph: full_graph
+      question: When the other side is raised, is it answered or left open?
+    n_qualifies:
+      definition: Number of qualifies edges.
+      graph: full_graph
+      question: How often does the writer say "it depends"?
+    n_conflicts:
+      definition: Number of conflicts edges.
+      graph: full_graph
+      question: Does the answer contradict itself?
+    hedged_share:
+      definition: Share of nodes flagged as hedged.
+      graph: none
+      question: How much does the writer soften their statements?
+
+  composition:
+    entity_share:
+      definition: Share of nodes of each entity type.
+      graph: none
+      question: What is the answer made of?
+    relation_share:
+      definition: Share of edges of each relation type.
+      graph: full_graph
+      question: Which moves does the writer make?
+
+comparison:
+  pairing:
+    definition: >
+      Compare each question within the same prompt first, then average the per-question
+      differences across all prompts.
+  baseline:
+    why: >
+      Every Human-vs-ChatGPT result must be shown next to a Human-vs-Human baseline.
+    problem: >
+      In HC3 finance, each question typically has one human answer, so we cannot pair two
+      human answers directly.
+    method: >
+      Split-half baseline: shuffle the human graphs, split them into two halves, then compare
+      the mean difference for each measure. Repeat 1,000 times with a fixed seed and report
+      the 95% range.
+    interpretation: >
+      A Human-vs-ChatGPT difference that falls inside the Human-vs-Human spread is not a
+      real difference.
+  significance:
+    method: Wilcoxon signed-rank test on per-question differences.
+    reporting:
+      - effect size
+      - number of pairs
+      - p-value only as secondary evidence
+      - Holm correction for multiple comparisons
+  whole_graph:
+    definition: Graph edit distance on the primary tree with node and edge types as labels.
+    purpose: Compare structural distance between Human-vs-ChatGPT and Human-vs-Human.
+  required_reporting:
+    - Number of graphs per group and number of invalid graphs per group.
+    - Extractor agreement with hand labels, reported separately for human and ChatGPT texts.
+    - Three real example pairs read by a person for the biggest observed difference.
+
+analysis_principles:
+  - Reasoning should be studied as a graph, not as a final prose summary.
+  - Node and edge types are the primary evidence; textual wording is not used directly for scoring.
+  - Human-vs-Human variation defines the natural noise floor.
+  - The purpose of the comparison is to understand reasoning style, not only correctness.
+  - Open-ended pattern discovery remains possible, but all official comparison results must use the fixed measurement protocol.
+
+merged_summary: >
+  This framework combines the conceptual emphasis on structural, topological, and dynamic
+  reasoning differences with the Task 6 measurement protocol for standardized comparison.
+  In other words, the conceptual layer explains what matters, while the measurement layer
+  guarantees that differences are observed consistently and compared against the appropriate
+  baseline. The result is a graph-based, statistically grounded, and interpretively meaningful
+  comparison of human and ChatGPT financial reasoning.
