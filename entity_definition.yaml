@@ -115,7 +115,7 @@ entities:
       A statement of when, for whom or under which circumstances another entity holds.
     test_question: "Does this limit the scope of another entity?"
     includes:
-      - "If ...", "unless ...", "for people who ...", "it depends on ...".
+      - 'Phrases like "If ...", "unless ...", "for people who ...", "it depends on ...".'
     excludes:
       - Arguments against (use counterpoint).
     example: "If you invest for more than 10 years, ..."
