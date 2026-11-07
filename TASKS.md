@@ -8,36 +8,35 @@ Steps refer to the plan in `README.md`.
 ## Priority 0 (Core)
 
 - [Done] Task 1: Get the data (Step 1)
-  - Load HC3 `finance`.
-  - Keep 100 questions where the human and ChatGPT answers differ by at most 15 words (10 or less preferred).
-  - If fewer than 100 exist, record the real number in `JOURNAL.md`.
-  - Save to `data/pairs.jsonl`, with the script that builds it.
+  - `scripts/get_data.py` downloads HC3 `finance` and writes `data/finance-filtered.jsonl`.
+  - Open: record in `JOURNAL.md` how many pairs pass the filter.
+  - Open: the script does not yet prefer opinion questions (see `data_exploration.ipynb` section 10).
 - [Eva] Task 2: Decide the entities (Step 2)
-  - Which parts of reasoning become nodes: claim, reason, refutation, rebuttal, condition, evidence, recommendation, or better ones?
-  - Decide how big one entity is (sentence, clause, or span).
-  - Write the result in `GUIDE.md`.
+  - Draft: `entity_definition.yaml` v0.1 (11 types, coverage rule, `main` and `hedged` flags), copied into `GUIDE.md`.
+  - Open: team review, then mark `GUIDE.md` FINAL.
 - [ ] Task 3: Decide the relations (Step 2)
-  - Pick relations that capture the structure of thinking: supports, attacks, answers, illustrates, qualifies, concludes, or better ones.
-  - Two people hand-label the same 2 texts and compare; fix the rules.
-  - Write the result in `GUIDE.md` and mark it final.
+  - Draft: `relation.yaml` v0.1 (9 relations, primary edges), copied into `GUIDE.md`.
+  - Open: two people hand-label the same 2 texts and compare; fix the rules.
+  - Open: mark `GUIDE.md` FINAL.
 - [ ] Task 4: Code that builds the graph (Step 3)
   - `src/extract.py`: text + `GUIDE.md` → entities and relations as JSON, using Claude.
-  - `src/validate.py`: every link points to a real entity, every type is allowed, one main claim.
-  - `src/build_graph.py`: JSON → `networkx` graph.
+  - Validation is done: `check()` in `src/measure.py`, with tests in `tests/test_measure.py`.
+  - Open: a coverage check (entity texts rebuild the answer), described in `entity_definition.yaml`.
   - Tests first.
 - [ ] Task 5: Code that draws a graph (Step 3)
   - `src/draw.py`: one color per entity type, labeled arrows, saves a PNG.
-  - Can start now with the example JSON in `README.md`.
-- [ ] Task 6: Brainstorm the analysis (Step 5)
-  - How do we compare human and ChatGPT graphs? Start from the ideas in `README.md`.
-  - Must include a human-vs-human baseline.
-  - Write the plan in `JOURNAL.md`.
+  - Can start now with the example JSON in `GUIDE.md` section 8.
+- [ ] Task 6: Define the analysis (Step 5)
+  - Draft: measures and comparison method in `criteria.yaml` v0.1, computed by `src/measure.py`.
+  - Wider brainstorm in `analyse logic.md`.
+  - Open: choose the human-vs-human baseline (split-half, or second FiQA human answer; see `README.md` Step 6).
+  - Open: write the agreed plan in `JOURNAL.md`.
 
 ## Priority 1 (Checking and results)
 
 - [ ] Task 7: Hand-label 10 blind texts in `annotations/`; score extractor vs people, and people vs people (Step 4)
 - [ ] Task 8: Check fairness (human vs ChatGPT accuracy) and stability (two runs on 20 texts) (Step 4)
-- [ ] Task 9: Run the analysis from Task 6 (Step 6)
+- [ ] Task 9: Run the analysis from Task 6 with `src/measure.py` (Step 6)
 - [ ] Task 10: Read 3 example pairs for the biggest difference (Step 6)
 - [ ] Task 11: Write `results/RESULTS.md` and the findings entry in `JOURNAL.md` (Step 7)
 
