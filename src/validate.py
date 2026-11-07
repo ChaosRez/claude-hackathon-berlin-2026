@@ -41,9 +41,10 @@ def validate(graph: dict, answer: str, schema: Schema) -> list[str]:
     if not nodes:
         return ["no nodes"]
 
+    # GUIDE.md section 8: nodes are listed in text order. Ids must be unique and increase.
     ids = [n["id"] for n in nodes]
-    if ids != list(range(1, len(ids) + 1)):
-        errors.append(f"node ids must be 1..{len(ids)} in reading order, got {ids}")
+    if any(b <= a for a, b in zip(ids, ids[1:])):
+        errors.append(f"node ids must be unique and increase in reading order, got {ids}")
     by_id = {n["id"]: n for n in nodes}
 
     errors += coverage_errors(answer, [n["text"] for n in nodes])

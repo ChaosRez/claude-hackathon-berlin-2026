@@ -81,6 +81,7 @@ def test_extra_non_primary_edges_are_allowed():
     (lambda g: g["nodes"][2].update(kind="fact"), "kind is only for evidence"),
     (lambda g: g["nodes"][3].update(type="other"), "other needs a note"),
     (lambda g: g["nodes"][1].update(id=7), "node ids"),
+    (lambda g: g["nodes"][2].update(id=2), "node ids"),
 ])
 def test_rule_violations_are_reported(fn, expected):
     errors = mutate(fn)
