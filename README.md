@@ -241,6 +241,16 @@ Install [uv](https://docs.astral.sh/uv/), then install the dependencies:
 uv sync
 ```
 
+To get the data:
+
+```bash
+uv run scripts/get_data.py
+```
+
+It downloads HC3 `finance` to `data/finance.jsonl`,
+then runs `scripts/filter_jsonl.py` to write `data/finance-filtered.jsonl`.
+Filter options pass through, for example `--max-diff 15`.
+
 To re-run the data exploration:
 
 ```bash
