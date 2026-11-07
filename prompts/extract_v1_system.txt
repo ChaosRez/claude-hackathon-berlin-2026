@@ -1,0 +1,2 @@
+TODO (Task 2/3 owners): system prompt for the extractor.
+Ask for JSON only: {"nodes": [...], "edges": [...]} as in GUIDE.md section 6.

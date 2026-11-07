@@ -1,0 +1,9 @@
+TODO (Task 2/3 owners): user prompt. Available placeholders:
+{guide}     full GUIDE.md
+{question}  the question
+{text}      one answer (human OR chatgpt)
+
+Question: {question}
+
+Answer:
+{text}
