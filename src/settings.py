@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     max_tokens: int = 4000
     temperature: float = 0.0
 
-    data_path: Path = ROOT / "dataset" / "finance-filtered.jsonl"
+    data_path: Path = ROOT / "data" / "finance-filtered.jsonl"
     prompt_version: str = "v1"  # loads prompts/extract_<version>_{system,user}.txt
     mock_llm: bool = False  # True = no API call, return the GUIDE.md example graph
 
