@@ -49,6 +49,10 @@ def test_example_measures():
     assert m["main_position"] == 0.0
     assert m["answered_attack_share"] == 1.0
     assert m["has_cycle"] == 0
+    assert m["n_cycles"] == 0
+    assert m["avg_degree"] == pytest.approx(10 / 6)
+    assert m["max_degree"] == 3  # main claim: 3 in, 0 out
+    assert m["max_in_degree"] == 3
     assert m["extra_edge_share"] == 0.0
     assert m["hedged_share"] == pytest.approx(1 / 6)
 
@@ -70,6 +74,8 @@ def test_cycle_is_counted_not_dropped():
     assert measure.check(g) == []
     m = measure.measures(g)
     assert m["has_cycle"] == 1
+    assert m["n_cycles"] == 1
+    assert m["max_degree"] == 4  # main claim: 3 in, 1 out
     assert m["longest_path"] == 2  # cycle {1,2} merged: 4 -> 3 -> {1,2}
 
 

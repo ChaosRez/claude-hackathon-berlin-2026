@@ -89,6 +89,26 @@ measures:
     definition: Average in-degree over nodes that have at least one incoming edge.
     graph: full_graph
     question: When a point gets support, how many pieces does it get?
+  avg_degree:
+    group: shape
+    definition: Average number of edges touching a node (in plus out), so 2 x n_edges / n_nodes.
+    graph: full_graph
+    question: How connected is a typical point?
+  max_degree:
+    group: shape
+    definition: Largest number of edges (in plus out) touching any one node in the graph.
+    graph: full_graph
+    question: Is there one hub point that much of the reasoning goes through?
+  max_in_degree:
+    group: shape
+    definition: Largest number of incoming edges on any one node.
+    graph: full_graph
+    question: How much backing does the best-backed point get?
+  n_cycles:
+    group: shape
+    definition: Number of simple directed cycles (each loop counted once).
+    graph: full_graph
+    question: How often does the reasoning go in circles?
   has_cycle:
     group: shape
     definition: 1 if the graph has a directed cycle, else 0.
