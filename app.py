@@ -31,8 +31,9 @@ def count_pairs(path: str) -> int:
 with st.sidebar:
     mode = st.radio("Input", ["Dataset", "Own text"])
     force = st.checkbox("Re-extract", help="Saved graphs are reused to save API credit. Tick to call Claude again.")
-    st.caption(f"Extractor: `{settings.backend}` · `{settings.model}` · effort `{settings.effort}`  \n"
-               f"Prompt: `{settings.prompt_path.name}` · saved to `{settings.output_dir.relative_to(ROOT)}/graphs/`")
+    votes = f" × {settings.votes} votes" if settings.approach == "voted" else ""
+    st.caption(f"Extractor: `{settings.approach}`{votes} · `{settings.backend}` · `{settings.model}` · effort `{settings.effort}`  \n"
+               f"Saved to `{settings.output_dir.relative_to(ROOT)}/graphs/`")
 
 if mode == "Dataset":
     if not settings.data_path.exists():

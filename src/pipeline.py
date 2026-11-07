@@ -39,10 +39,12 @@ def graph_path(item_id: str, settings: Settings) -> Path:
 def extract_to_yaml(item: dict, settings: Settings) -> Path:
     """Step 2: run the team's extractor on one answer and save its output as YAML."""
     schema = load_schema()
-    system = extract.build_system_prompt(settings.prompt_path, schema)
-    args = SimpleNamespace(backend=settings.backend, model=settings.model,
-                           effort=settings.effort, retries=settings.retries)
-    record = extract.extract_one(item, system, schema, schema.output_json_schema(), args)
+    prompts = {"one-pass": extract.build_system_prompt(settings.prompt_path, schema),
+               "split": extract.build_system_prompt(settings.split_prompt, schema),
+               "label": extract.build_system_prompt(settings.label_prompt, schema)}
+    args = SimpleNamespace(backend=settings.backend, model=settings.model, effort=settings.effort,
+                           retries=settings.retries, votes=settings.votes)
+    record = extract.EXTRACTORS[settings.approach](item, prompts, schema, args)
     path = graph_path(item["id"], settings)
     path.parent.mkdir(parents=True, exist_ok=True)
     write_yaml(path, extract.graph_document(record))
